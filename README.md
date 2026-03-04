@@ -23,12 +23,17 @@ yarn install
 ```
 problems/
   <problem-name>/
+    problem.json     # Multi-part config (optional)
     main.js          # JavaScript solution file
     main.py          # Python solution file
 tests/
   <problem-name>/
-    sample.test.js   # Jest tests
-    test_sample.py   # pytest tests
+    sample.test.js   # Jest tests (single-part problems)
+    test_sample.py   # pytest tests (single-part problems)
+    suite.test.js    # Jest tests (multi-part problems)
+    suite.test.py    # pytest tests (multi-part problems)
+docs/
+  problem-schema.md  # Authoring reference for multi-part problems
 ```
 
 ## Adding a New Problem
@@ -43,6 +48,20 @@ tests/
 - Python test files import from `problems/<name>/main.py` via `sys.path`
 - Jest tests live at `tests/<name>/sample.test.js`
 - pytest tests live at `tests/<name>/test_sample.py`
+
+## Multi-Part Problems
+
+Problems can be split into progressive parts using a `problem.json` file. When you select a multi-part problem, the CLI:
+
+1. Writes starter code (scaffold) to the solution file
+2. Runs only the tests for the current part
+3. When all tests pass, appends the next part's scaffold to the same file
+4. Shows progress: `Part X of Y unlocked`
+5. After all parts complete, returns to the problem menu
+
+You never switch files — the single `main.js` or `main.py` accumulates content as you progress. The total number of parts is intentionally hidden during a session; only the unlocked count is shown.
+
+See [docs/problem-schema.md](docs/problem-schema.md) for the full authoring reference.
 
 ## Requirements
 

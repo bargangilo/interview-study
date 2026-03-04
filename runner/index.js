@@ -4,6 +4,8 @@ const { execFileSync, spawn } = require("child_process");
 const { select } = require("@inquirer/prompts");
 const chalk = require("chalk");
 const { startWatching } = require("./watcher");
+const { loadProblemConfig, writeInitialScaffold } = require("./config");
+const { showPartIntro } = require("./ui");
 
 const ROOT_DIR = path.resolve(__dirname, "..");
 const VSCODE_DATA_DIR = path.join(ROOT_DIR, ".vscode-data");
@@ -136,6 +138,29 @@ async function main() {
       });
     }
 
+    // Load multi-part config (null for legacy single-part problems)
+    let config = null;
+    try {
+      config = loadProblemConfig(problem, ROOT_DIR);
+    } catch (err) {
+      console.log(chalk.red(`\n  ${err.message}\n`));
+      continue;
+    }
+
+    // Write initial scaffold and show part intro for multi-part problems
+    if (config) {
+      writeInitialScaffold(problem, language, config, ROOT_DIR);
+      console.log(
+        chalk.cyan(`\n  ${config.title}`) +
+          (config.description ? chalk.gray(` — ${config.description}`) : "")
+      );
+      showPartIntro(
+        1,
+        config.parts[0].title,
+        config.parts[0].description
+      );
+    }
+
     // Launch VS Code if available, with isolated user-data-dir for clean UI
     try {
       execFileSync("which", ["code"], { stdio: "ignore" });
@@ -162,11 +187,11 @@ async function main() {
     }
 
     // Start watching
-    const watcher = startWatching(problem, language, ROOT_DIR);
+    const controller = startWatching(problem, language, ROOT_DIR, config);
 
-    await waitForQuit();
+    await Promise.race([waitForQuit(), controller.completionPromise]);
 
-    await watcher.close();
+    await controller.close();
     console.log("\n");
   }
 }

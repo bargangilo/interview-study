@@ -1,24 +1,31 @@
 const path = require("path");
 const { spawn } = require("child_process");
 const chokidar = require("chokidar");
-const { showSummary, showWatching, showRunning } = require("./ui");
+const {
+  showSummary,
+  showWatching,
+  showRunning,
+  showPartComplete,
+  showAllComplete,
+} = require("./ui");
+const { appendPartScaffold, buildTestFilter } = require("./config");
 
 function parseJestOutput(stdout) {
-  // Jest summary line: Tests: X passed, Y total  or  Tests: X failed, Y passed, Z total
-  const match = stdout.match(
-    /Tests:\s+(?:(\d+) failed,\s+)?(\d+) passed,\s+(\d+) total/
-  );
-  if (match) {
-    const passed = parseInt(match[2], 10);
-    const total = parseInt(match[3], 10);
-    return { passed, total };
-  }
-  // All failed: Tests: X failed, Y total
-  const failMatch = stdout.match(/Tests:\s+(\d+) failed,\s+(\d+) total/);
-  if (failMatch) {
-    return { passed: 0, total: parseInt(failMatch[2], 10) };
-  }
-  return null;
+  // Extract the Tests summary line, then parse passed/failed independently.
+  // This handles all Jest formats including skipped tests from --testNamePattern.
+  const testsLine = stdout.match(/Tests:.*$/m);
+  if (!testsLine) return null;
+
+  const line = testsLine[0];
+  const passMatch = line.match(/(\d+) passed/);
+  const failMatch = line.match(/(\d+) failed/);
+
+  const passed = passMatch ? parseInt(passMatch[1], 10) : 0;
+  const failed = failMatch ? parseInt(failMatch[1], 10) : 0;
+
+  if (passed === 0 && failed === 0) return null;
+
+  return { passed, total: passed + failed };
 }
 
 function parsePytestOutput(stdout) {
@@ -30,21 +37,29 @@ function parsePytestOutput(stdout) {
   return { passed, total: passed + failed };
 }
 
-function runTests(problem, language, rootDir) {
+function runTests(problem, language, rootDir, testFilter) {
   return new Promise((resolve) => {
     let cmd, args, parser;
 
     if (language === "JavaScript") {
       cmd = "yarn";
-      args = [
-        "jest",
-        path.join(rootDir, "tests", problem, "sample.test.js"),
-        "--no-coverage",
-      ];
+      const testFile = testFilter
+        ? path.join(rootDir, "tests", problem, "suite.test.js")
+        : path.join(rootDir, "tests", problem, "sample.test.js");
+      args = ["jest", testFile, "--no-coverage"];
+      if (testFilter) {
+        args.push("--testNamePattern", testFilter);
+      }
       parser = parseJestOutput;
     } else {
+      const testFile = testFilter
+        ? path.join(rootDir, "tests", problem, "suite.test.py")
+        : path.join(rootDir, "tests", problem, "test_sample.py");
       cmd = "pytest";
-      args = [path.join(rootDir, "tests", problem, "test_sample.py"), "-v"];
+      args = [testFile, "-v"];
+      if (testFilter) {
+        args.push("-k", testFilter, "--import-mode=importlib");
+      }
       parser = parsePytestOutput;
     }
 
@@ -73,20 +88,96 @@ function runTests(problem, language, rootDir) {
   });
 }
 
-function startWatching(problem, language, rootDir) {
+function startWatching(problem, language, rootDir, config) {
   const ext = language === "JavaScript" ? "js" : "py";
   const filePath = path.join(rootDir, "problems", problem, `main.${ext}`);
 
+  // --- Legacy path (no config / single-part) ---
+  if (!config) {
+    showWatching(problem, language);
+
+    let running = false;
+
+    const run = async () => {
+      if (running) return;
+      running = true;
+      showRunning();
+      const { passed, total } = await runTests(problem, language, rootDir, null);
+      showSummary(passed, total, Date.now());
+      running = false;
+    };
+
+    run();
+
+    const watcher = chokidar.watch(filePath, {
+      ignoreInitial: true,
+      awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 50 },
+    });
+
+    watcher.on("change", run);
+
+    return {
+      close: () => watcher.close(),
+      completionPromise: new Promise(() => {}),
+    };
+  }
+
+  // --- Multi-part path ---
   showWatching(problem, language);
 
+  let currentPart = 0;
   let running = false;
+  let ignoreNextChange = false;
+  let _resolveCompletion;
+  const completionPromise = new Promise((resolve) => {
+    _resolveCompletion = resolve;
+  });
 
   const run = async () => {
     if (running) return;
     running = true;
-    showRunning();
-    const { passed, total } = await runTests(problem, language, rootDir);
-    showSummary(passed, total, Date.now());
+
+    let advancing = true;
+    while (advancing) {
+      advancing = false;
+      showRunning();
+
+      const testFilter = buildTestFilter(
+        config.parts[currentPart].activeTests,
+        language
+      );
+      const { passed, total } = await runTests(
+        problem,
+        language,
+        rootDir,
+        testFilter
+      );
+      showSummary(passed, total, Date.now(), {
+        current: currentPart + 1,
+        unlocked: currentPart + 1,
+      });
+
+      if (passed === total && total > 0) {
+        const nextPart = currentPart + 1;
+        if (nextPart >= config.parts.length) {
+          // All parts complete
+          showAllComplete(problem);
+          _resolveCompletion();
+        } else {
+          // Advance to next part
+          ignoreNextChange = true;
+          appendPartScaffold(problem, language, config, nextPart, rootDir);
+          currentPart = nextPart;
+          showPartComplete(
+            currentPart, // display as 1-indexed (currentPart was just incremented)
+            config.parts[currentPart].title,
+            config.parts[currentPart].description
+          );
+          advancing = true; // re-run with new filter
+        }
+      }
+    }
+
     running = false;
   };
 
@@ -98,9 +189,18 @@ function startWatching(problem, language, rootDir) {
     awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 50 },
   });
 
-  watcher.on("change", run);
+  watcher.on("change", () => {
+    if (ignoreNextChange) {
+      ignoreNextChange = false;
+      return;
+    }
+    run();
+  });
 
-  return watcher;
+  return {
+    close: () => watcher.close(),
+    completionPromise,
+  };
 }
 
 module.exports = { startWatching };

@@ -4,20 +4,24 @@ function clearLine() {
   process.stdout.write("\r\x1b[K");
 }
 
-function showSummary(passed, total, timestamp) {
+function showSummary(passed, total, timestamp, partInfo) {
   clearLine();
   const time = new Date(timestamp).toLocaleTimeString();
-  if (passed === total) {
-    process.stdout.write(
-      chalk.green(`  ✔ ${passed} / ${total} tests passing`) +
-        chalk.gray(`   [last run: ${time}]`)
-    );
+  let line = "";
+  if (partInfo) {
+    line +=
+      chalk.bold(`  Part ${partInfo.current} of ${partInfo.unlocked} unlocked`) +
+      "   ";
   } else {
-    process.stdout.write(
-      chalk.yellow(`  ✔ ${passed} / ${total} tests passing`) +
-        chalk.gray(`   [last run: ${time}]`)
-    );
+    line += "  ";
   }
+  if (passed === total && total > 0) {
+    line += chalk.green(`✔ ${passed} / ${total} tests passing`);
+  } else {
+    line += chalk.yellow(`✔ ${passed} / ${total} tests passing`);
+  }
+  line += chalk.gray(`   [last run: ${time}]`);
+  process.stdout.write(line);
 }
 
 function showWatching(problem, language) {
@@ -33,4 +37,42 @@ function showRunning() {
   process.stdout.write(chalk.gray("  ⟳ Running tests..."));
 }
 
-module.exports = { clearLine, showSummary, showWatching, showRunning };
+function showPartIntro(partNumber, title, description) {
+  const separator = chalk.gray("  " + "─".repeat(45));
+  console.log(separator);
+  console.log(chalk.bold(`  Part ${partNumber}: ${title || "Untitled"}`));
+  if (description) {
+    console.log(chalk.white(`  ${description}`));
+  }
+  console.log(separator);
+  console.log();
+}
+
+function showPartComplete(completedPart, nextTitle, nextDescription) {
+  clearLine();
+  console.log(
+    chalk.green.bold(
+      `\n  ✔ Part ${completedPart} complete!`
+    ) +
+      chalk.white(` Part ${completedPart + 1} has been added to your file.`)
+  );
+  showPartIntro(completedPart + 1, nextTitle, nextDescription);
+}
+
+function showAllComplete(problemName) {
+  clearLine();
+  console.log(
+    chalk.green.bold(`\n  ✔ All parts complete for ${problemName}!`)
+  );
+  console.log(chalk.gray("  Returning to menu...\n"));
+}
+
+module.exports = {
+  clearLine,
+  showSummary,
+  showWatching,
+  showRunning,
+  showPartIntro,
+  showPartComplete,
+  showAllComplete,
+};

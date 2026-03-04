@@ -1,0 +1,41 @@
+{
+  "title": "Flatten and Sum",
+  "description": "Flatten nested arrays and sum their elements",
+  "parts": [
+    {
+      "title": "Flatten a nested array",
+      "description": "Implement flattenArray(arr) / flatten_array(arr) that takes a deeply nested array and returns a flat version.",
+      "activeTests": [
+        "already flat array",
+        "single level nesting",
+        "deep nesting",
+        "empty array",
+        "mixed depth"
+      ],
+      "scaffold": {
+        "js": "/**\n * Flatten a deeply nested array into a single-level array.\n *\n * @param {Array} arr - A possibly nested array\n * @returns {number[]} A flat array of all values\n */\nfunction flattenArray(arr) {\n  // TODO: implement\n}\n\nmodule.exports = { flattenArray };\n",
+        "python": "\"\"\"\nFlatten a deeply nested list into a single-level list.\n\"\"\"\n\n\ndef flatten_array(arr: list) -> list:\n    pass\n"
+      }
+    },
+    {
+      "title": "Sum nested elements without flattening",
+      "description": "Implement sumNested(arr) / sum_nested(arr) that takes a deeply nested array and returns the sum of all numbers — without flattening first. Both functions must continue to pass their tests.",
+      "activeTests": [
+        "already flat array",
+        "single level nesting",
+        "deep nesting",
+        "empty array",
+        "mixed depth",
+        "single number nested deep",
+        "multiple numbers across depths",
+        "empty nested array",
+        "all zeros",
+        "large nested structure"
+      ],
+      "scaffold": {
+        "js": "\n/**\n * Sum all numbers in a deeply nested array without flattening.\n *\n * @param {Array} arr - A possibly nested array of numbers\n * @returns {number} The sum of all numbers\n */\nfunction sumNested(arr) {\n  // TODO: implement\n}\n\nmodule.exports.sumNested = sumNested;\n",
+        "python": "\n\ndef sum_nested(arr: list) -> int:\n    \"\"\"Sum all numbers in a deeply nested list without flattening.\"\"\"\n    pass\n"
+      }
+    }
+  ]
+}
