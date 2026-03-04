@@ -88,9 +88,9 @@ function runTests(problem, language, rootDir, testFilter) {
   });
 }
 
-function startWatching(problem, language, rootDir, config) {
+function startWatching(problem, language, rootDir, config, startPart) {
   const ext = language === "JavaScript" ? "js" : "py";
-  const filePath = path.join(rootDir, "problems", problem, `main.${ext}`);
+  const filePath = path.join(rootDir, "workspace", problem, `main.${ext}`);
 
   // --- Legacy path (no config / single-part) ---
   if (!config) {
@@ -125,7 +125,7 @@ function startWatching(problem, language, rootDir, config) {
   // --- Multi-part path ---
   showWatching(problem, language);
 
-  let currentPart = 0;
+  let currentPart = startPart || 0;
   let running = false;
   let ignoreNextChange = false;
   let _resolveCompletion;

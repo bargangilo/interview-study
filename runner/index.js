@@ -4,7 +4,14 @@ const { execFileSync, spawn } = require("child_process");
 const { select } = require("@inquirer/prompts");
 const chalk = require("chalk");
 const { startWatching } = require("./watcher");
-const { loadProblemConfig, writeInitialScaffold } = require("./config");
+const {
+  loadProblemConfig,
+  ensureWorkspace,
+  workspacePath,
+  hasWorkspaceFile,
+  writeInitialScaffold,
+  inferCurrentPart,
+} = require("./config");
 const { showPartIntro } = require("./ui");
 
 const ROOT_DIR = path.resolve(__dirname, "..");
@@ -147,30 +154,60 @@ async function main() {
       continue;
     }
 
-    // Write initial scaffold and show part intro for multi-part problems
+    // Ensure workspace/ directory exists
+    ensureWorkspace(ROOT_DIR);
+
+    // Workspace initialization — handle resume vs restart
+    let startPart = 0;
     if (config) {
-      writeInitialScaffold(problem, language, config, ROOT_DIR);
+      // Multi-part problem
+      if (hasWorkspaceFile(problem, language, ROOT_DIR)) {
+        const resumeChoice = await select({
+          message: "A previous session was found for this problem.",
+          choices: [
+            { name: "Resume where you left off", value: "resume" },
+            { name: "Restart from scratch", value: "restart" },
+          ],
+        });
+
+        if (resumeChoice === "resume") {
+          startPart = inferCurrentPart(problem, language, ROOT_DIR);
+        } else {
+          writeInitialScaffold(problem, language, config, ROOT_DIR);
+        }
+      } else {
+        writeInitialScaffold(problem, language, config, ROOT_DIR);
+      }
+
       console.log(
         chalk.cyan(`\n  ${config.title}`) +
           (config.description ? chalk.gray(` — ${config.description}`) : "")
       );
       showPartIntro(
-        1,
-        config.parts[0].title,
-        config.parts[0].description
+        startPart + 1,
+        config.parts[startPart].title,
+        config.parts[startPart].description
       );
+    } else {
+      // Single-part problem — copy source to workspace if no workspace file exists
+      const ext = language === "JavaScript" ? "js" : "py";
+      const srcFile = path.join(ROOT_DIR, "problems", problem, `main.${ext}`);
+      const wsFile = workspacePath(problem, language, ROOT_DIR);
+      fs.mkdirSync(path.dirname(wsFile), { recursive: true });
+      if (!hasWorkspaceFile(problem, language, ROOT_DIR)) {
+        fs.copyFileSync(srcFile, wsFile);
+      }
     }
 
     // Launch VS Code if available, with isolated user-data-dir for clean UI
     try {
       execFileSync("which", ["code"], { stdio: "ignore" });
       ensureVscodeDataDir();
-      const ext = language === "JavaScript" ? "js" : "py";
-      const solutionFile = path.join(ROOT_DIR, "problems", problem, `main.${ext}`);
-      const workspace = path.join(ROOT_DIR, "interview-study.code-workspace");
+      const solutionFile = workspacePath(problem, language, ROOT_DIR);
+      const vsWorkspace = path.join(ROOT_DIR, "interview-study.code-workspace");
       const child = spawn("code", [
         "--user-data-dir", VSCODE_DATA_DIR,
-        workspace,
+        vsWorkspace,
         "-g", solutionFile,
       ], {
         cwd: ROOT_DIR,
@@ -187,7 +224,7 @@ async function main() {
     }
 
     // Start watching
-    const controller = startWatching(problem, language, ROOT_DIR, config);
+    const controller = startWatching(problem, language, ROOT_DIR, config, startPart);
 
     await Promise.race([waitForQuit(), controller.completionPromise]);
 

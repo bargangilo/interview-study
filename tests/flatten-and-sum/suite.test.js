@@ -1,4 +1,4 @@
-const mod = require("../../problems/flatten-and-sum/main");
+const mod = require("../../workspace/flatten-and-sum/main");
 
 // ---- Part 1: flattenArray ----
 

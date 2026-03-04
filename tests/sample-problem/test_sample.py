@@ -1,7 +1,7 @@
 import sys
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "problems", "sample-problem"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "workspace", "sample-problem"))
 from main import two_sum
 
 

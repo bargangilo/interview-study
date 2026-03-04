@@ -7,14 +7,17 @@ Canonical reference for authoring multi-part problems in `interview-study`.
 ```
 problems/<name>/
   problem.json     # Problem configuration (required for multi-part)
-  main.js          # JS solution file (overwritten by CLI on entry)
-  main.py          # Python solution file (overwritten by CLI on entry)
+  main.js          # JS stub (read-only, used for problem detection)
+  main.py          # Python stub (read-only, used for problem detection)
+workspace/<name>/
+  main.js          # Active JS solution file (written by CLI, edited by user)
+  main.py          # Active Python solution file (written by CLI, edited by user)
 tests/<name>/
   suite.test.js    # Jest tests — all parts in one file
   suite.test.py    # pytest tests — all parts in one file
 ```
 
-Single-part (legacy) problems omit `problem.json` and use `sample.test.js` / `test_sample.py` instead.
+The `problems/` directory is never modified at runtime — scaffolds are written to `workspace/`. Single-part (legacy) problems omit `problem.json` and use `sample.test.js` / `test_sample.py` instead.
 
 ## `problem.json` Schema
 
@@ -77,7 +80,7 @@ A part is considered complete when **all tests in the current part's `activeTest
 
 ### On Problem Start (Part 1)
 
-The CLI **overwrites** `main.js` / `main.py` with `parts[0].scaffold.js` / `parts[0].scaffold.python`. Any previous content is replaced.
+The CLI writes `parts[0].scaffold.js` / `parts[0].scaffold.python` to `workspace/<name>/main.js` / `main.py`. If a previous session exists, the user is prompted to resume or restart from scratch.
 
 ### On Part Progression (Part 2+)
 
@@ -109,10 +112,10 @@ When the user passes all tests for the current part, the next part's scaffold is
 
 ### Jest (`suite.test.js`)
 
-Write all tests for all parts in the file. Use `const mod = require(...)` at the top. Functions that don't exist yet (from future parts) will be `undefined`, but their test callbacks are filtered out by `--testNamePattern` and never execute.
+Write all tests for all parts in the file. Use `const mod = require(...)` at the top, importing from `workspace/`. Functions that don't exist yet (from future parts) will be `undefined`, but their test callbacks are filtered out by `--testNamePattern` and never execute.
 
 ```js
-const mod = require("../../problems/<name>/main");
+const mod = require("../../workspace/<name>/main");
 
 describe("Part 1 Function", () => {
   test("test name matching activeTests", () => {
@@ -135,7 +138,7 @@ Use **function-local imports** for each test. This prevents `ImportError` when i
 import sys
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "problems", "<name>"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "workspace", "<name>"))
 
 def test_already_flat_array():
     from main import flatten_array  # import inside function body

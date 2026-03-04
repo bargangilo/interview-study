@@ -1,4 +1,4 @@
-const { twoSum } = require("../../problems/sample-problem/main");
+const { twoSum } = require("../../workspace/sample-problem/main");
 
 describe("twoSum", () => {
   test("basic case", () => {

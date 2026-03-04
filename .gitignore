@@ -1,6 +1,8 @@
 node_modules/
 .vscode-data/
 .pnp.*
+workspace/*
+!workspace/.gitkeep
 .yarn/*
 !.yarn/patches
 !.yarn/plugins
