@@ -9,15 +9,14 @@ problems/<name>/
   problem.json     # Problem configuration (required for multi-part)
   main.js          # JS stub (read-only, used for problem detection)
   main.py          # Python stub (read-only, used for problem detection)
+  suite.test.js    # Jest tests — all parts in one file
+  suite.test.py    # pytest tests — all parts in one file
 workspace/<name>/
   main.js          # Active JS solution file (written by CLI, edited by user)
   main.py          # Active Python solution file (written by CLI, edited by user)
-tests/<name>/
-  suite.test.js    # Jest tests — all parts in one file
-  suite.test.py    # pytest tests — all parts in one file
 ```
 
-The `problems/` directory is never modified at runtime — scaffolds are written to `workspace/`. Single-part (legacy) problems omit `problem.json` and use `sample.test.js` / `test_sample.py` instead.
+Test suite files live alongside the problem config inside `problems/<name>/`. The `problems/` directory is never modified at runtime — scaffolds are written to `workspace/`. Single-part (legacy) problems omit `problem.json` and use `sample.test.js` / `test_sample.py` instead.
 
 ## `problem.json` Schema
 
@@ -105,10 +104,12 @@ When the user passes all tests for the current part, the next part's scaffold is
 
 ## Test File Conventions
 
-### File Naming
+### File Naming and Location
 
-- Multi-part problems: `suite.test.js` / `suite.test.py`
-- Legacy single-part problems: `sample.test.js` / `test_sample.py`
+All test files live inside `problems/<name>/` alongside the problem config:
+
+- Multi-part problems: `problems/<name>/suite.test.js` / `suite.test.py`
+- Legacy single-part problems: `problems/<name>/sample.test.js` / `test_sample.py`
 
 ### Jest (`suite.test.js`)
 

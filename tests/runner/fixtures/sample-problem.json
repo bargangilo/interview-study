@@ -1,0 +1,32 @@
+{
+  "title": "Test Problem",
+  "description": "A minimal two-part problem for testing",
+  "parts": [
+    {
+      "title": "Part One",
+      "description": "Implement the first function",
+      "activeTests": [
+        "handles basic input",
+        "handles empty input"
+      ],
+      "scaffold": {
+        "js": "function partOne(x) {\n  // TODO\n}\n\nmodule.exports = { partOne };\n",
+        "python": "def part_one(x):\n    pass\n"
+      }
+    },
+    {
+      "title": "Part Two",
+      "description": "Implement the second function",
+      "activeTests": [
+        "handles basic input",
+        "handles empty input",
+        "computes sum correctly",
+        "returns zero for empty"
+      ],
+      "scaffold": {
+        "js": "\nfunction partTwo(x) {\n  // TODO\n}\n\nmodule.exports.partTwo = partTwo;\n",
+        "python": "\ndef part_two(x):\n    pass\n"
+      }
+    }
+  ]
+}

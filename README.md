@@ -27,19 +27,28 @@ problems/                          ← read-only source of truth (never modified
     problem.json                   # Multi-part config (optional)
     main.js                        # JavaScript stub (used for problem detection)
     main.py                        # Python stub (used for problem detection)
+    suite.test.js                  # Jest tests (multi-part problems)
+    suite.test.py                  # pytest tests (multi-part problems)
+    sample.test.js                 # Jest tests (single-part problems)
+    test_sample.py                 # pytest tests (single-part problems)
 workspace/                         ← gitignored working area (user edits happen here)
   .gitkeep                         # Ensures folder is committed
   <problem-name>/                  # Created by CLI on problem start
     main.js                        # Active JS solution file
     main.py                        # Active Python solution file
 tests/
-  <problem-name>/
-    sample.test.js                 # Jest tests (single-part problems)
-    test_sample.py                 # pytest tests (single-part problems)
-    suite.test.js                  # Jest tests (multi-part problems)
-    suite.test.py                  # pytest tests (multi-part problems)
+  runner/                          # Unit tests for the CLI runner
+    index.test.js
+    watcher.test.js
+    ui.test.js
+    fixtures/                      # Test fixtures
 docs/
   problem-schema.md                # Authoring reference for multi-part problems
+runner/                            # CLI application source
+  index.js
+  watcher.js
+  ui.js
+  config.js
 ```
 
 ### Workspace Directory
@@ -54,15 +63,16 @@ The `workspace/` folder is committed to the repo (via `.gitkeep`) but its conten
 ## Adding a New Problem
 
 1. Create `problems/<name>/main.js` and/or `main.py` with a stub function
-2. Create `tests/<name>/sample.test.js` and/or `test_sample.py` with test cases
+2. Create `problems/<name>/sample.test.js` and/or `test_sample.py` with test cases inside the same problem folder
 3. The CLI auto-detects new problems on each run
 
 ### Conventions
 
 - JS solution files should `module.exports` the main function
+- Test files live inside `problems/<name>/` alongside the problem source files
 - Test files import from `workspace/<name>/main` (not `problems/`)
-- Jest tests live at `tests/<name>/sample.test.js`
-- pytest tests live at `tests/<name>/test_sample.py`
+- Single-part test files: `sample.test.js` / `test_sample.py`
+- Multi-part test files: `suite.test.js` / `suite.test.py`
 
 ## Multi-Part Problems
 
@@ -89,6 +99,21 @@ A previous session was found for this problem.
 **Resume** (default) reads the existing file and infers your current part from the delimiter comments in the file. **Restart** overwrites the file with the Part 1 scaffold.
 
 See [docs/problem-schema.md](docs/problem-schema.md) for the full authoring reference.
+
+## Testing the Runner
+
+Runner unit tests live in `tests/runner/` and cover the CLI's config loading, workspace management, UI output, and watcher logic.
+
+```bash
+yarn test        # runs all runner unit tests
+```
+
+There are two distinct types of tests in this project:
+
+- **Runner unit tests** (`tests/runner/*.test.js`) — test the CLI application itself. Run via `yarn test`. These mock all filesystem and process calls.
+- **Problem suite files** (`problems/<name>/suite.test.js` and `suite.test.py`) — test the user's solution code during a study session. These are **never** run by `yarn test`. They are only invoked directly by the CLI watcher when a user is working on a problem.
+
+The Jest config in `package.json` explicitly excludes `problems/` from test discovery via `testPathIgnorePatterns`, so `yarn test` will never accidentally run problem suites.
 
 ## Requirements
 

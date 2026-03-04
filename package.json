@@ -4,7 +4,11 @@
   "private": true,
   "description": "Interview coding study environment with hot-reload test watching",
   "scripts": {
-    "start": "node runner/index.js"
+    "start": "node runner/index.js",
+    "test": "jest"
+  },
+  "jest": {
+    "testPathIgnorePatterns": ["/node_modules/", "/problems/"]
   },
   "dependencies": {
     "@inquirer/prompts": "^7.0.0",

@@ -44,17 +44,17 @@ function runTests(problem, language, rootDir, testFilter) {
     if (language === "JavaScript") {
       cmd = "yarn";
       const testFile = testFilter
-        ? path.join(rootDir, "tests", problem, "suite.test.js")
-        : path.join(rootDir, "tests", problem, "sample.test.js");
-      args = ["jest", testFile, "--no-coverage"];
+        ? path.join(rootDir, "problems", problem, "suite.test.js")
+        : path.join(rootDir, "problems", problem, "sample.test.js");
+      args = ["jest", testFile, "--no-coverage", "--testPathIgnorePatterns=[]"];
       if (testFilter) {
         args.push("--testNamePattern", testFilter);
       }
       parser = parseJestOutput;
     } else {
       const testFile = testFilter
-        ? path.join(rootDir, "tests", problem, "suite.test.py")
-        : path.join(rootDir, "tests", problem, "test_sample.py");
+        ? path.join(rootDir, "problems", problem, "suite.test.py")
+        : path.join(rootDir, "problems", problem, "test_sample.py");
       cmd = "pytest";
       args = [testFile, "-v"];
       if (testFilter) {
