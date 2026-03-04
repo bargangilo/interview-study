@@ -1,6 +1,7 @@
 {
   "title": "Flatten and Sum",
   "description": "Flatten nested arrays and sum their elements",
+  "expectedMinutes": 25,
   "parts": [
     {
       "title": "Flatten a nested array",

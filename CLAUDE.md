@@ -18,16 +18,19 @@ Hot-reload coding study environment for practicing interview problems. Users sel
 
 ## Architecture
 
-The CLI (`runner/`) is a Node.js app with four modules:
-- `runner/index.js` — Main menu (Start a Problem, Problem List, Clear a Problem, Exit), problem picker with descriptions and status badges, workspace init, resume/restart prompt, VS Code launch, session lifecycle
-- `runner/watcher.js` — Uses `chokidar` to watch the workspace solution file; spawns `yarn jest` or `pytest` on change; parses pass/fail counts from test runner output; manages multi-part state and progression
-- `runner/ui.js` — Terminal output helpers (summary line, status indicators, part progress, status badge formatting)
+The CLI (`runner/`) is a Node.js app with six modules:
+- `runner/index.js` — Main menu (Start a Problem, Problem List, Stats, Clear a Problem, Exit), problem picker with descriptions and status badges, workspace init, resume/restart prompt, countdown prompt, VS Code launch, session lifecycle, P key pause/resume, SIGINT handling
+- `runner/watcher.js` — Uses `chokidar` to watch the workspace solution file; spawns `yarn jest` or `pytest` on change; parses pass/fail counts from test runner output; manages multi-part state and progression; integrates timer for live display updates
+- `runner/ui.js` — Terminal output helpers (summary line with timer display, status indicators, part progress, status badge formatting, milestone warnings, stats formatting)
 - `runner/config.js` — Loads/validates `problem.json`, manages workspace paths, writes scaffolds, builds test filters, infers resume state from part delimiters, workspace status detection, completion markers
+- `runner/timer.js` — Timer state machine (stopwatch/countdown modes, pause/resume, wall-clock-based elapsed math, milestone tracking, serialization for session persistence)
+- `runner/stats.js` — Session read/write (`session.json`), global and per-problem stats computation, streak calculation, time formatting utilities
 
 ### Key Path Convention
 
 - **Problem config, detection & test suites:** `problems/<name>/` (read-only, never written at runtime)
 - **Working files:** `workspace/<name>/main.js` or `main.py` (created/written by CLI)
+- **Session data:** `workspace/<name>/session.json` (timer state, attempt history)
 - **Runner unit tests:** `tests/runner/` (test the CLI itself, run via `yarn test`)
 
 Problem test suites (`suite.test.js`, `sample.test.js`, etc.) live inside `problems/<name>/` alongside the problem config. They are excluded from `yarn test` via `testPathIgnorePatterns` in `package.json` and only invoked directly by the CLI watcher.
@@ -53,12 +56,12 @@ The CLI auto-detects problem directories. Problems without a `problem.json` are 
 
 Runner unit tests live in `tests/runner/` and cover config loading, workspace management, UI output, and watcher logic. Always add or update tests when making changes to the runner:
 
-- **New features:** Add tests covering the new behavior in the appropriate test file (`index.test.js`, `watcher.test.js`, or `ui.test.js`)
+- **New features:** Add tests covering the new behavior in the appropriate test file (`index.test.js`, `watcher.test.js`, `ui.test.js`, `timer.test.js`, or `stats.test.js`)
 - **Bug fixes:** Add a regression test that would have caught the bug
 - **Refactors:** Ensure existing tests still pass; update assertions if behavior intentionally changed
 - Run `yarn test` to verify all tests pass before considering work complete
 
-Test files mock `fs`, `child_process`, and `chokidar` — no real filesystem or process calls. Use the existing test patterns (mock setup in `beforeEach`/per-test, `stripAnsi` helper for UI tests, fixture files in `tests/runner/fixtures/`).
+Test files mock `fs`, `child_process`, and `chokidar` — no real filesystem or process calls. Timer tests use `jest.useFakeTimers()` to control `setInterval` and `Date.now()`. Use the existing test patterns (mock setup in `beforeEach`/per-test, `stripAnsi` helper for UI tests, fixture files in `tests/runner/fixtures/`).
 
 ## Conventions
 

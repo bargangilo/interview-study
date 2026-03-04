@@ -1,0 +1,54 @@
+{
+  "title": "Two Sum & Three Sum",
+  "description": "Classic array search problems — from brute force to optimized to triplets",
+  "expectedMinutes": 30,
+  "parts": [
+    {
+      "title": "Two Sum — Brute Force",
+      "description": "Implement twoSum(nums, target) that returns the indices of two numbers adding up to target. Any working approach is fine.",
+      "activeTests": [
+        "basic case",
+        "no solution returns undefined or empty",
+        "duplicate values"
+      ],
+      "scaffold": {
+        "js": "/**\n * Two Sum\n *\n * Given an array of integers `nums` and an integer `target`,\n * return the indices of the two numbers that add up to `target`.\n *\n * You may assume each input has exactly one solution,\n * and you may not use the same element twice.\n *\n * @param {number[]} nums\n * @param {number} target\n * @returns {number[]}\n */\nfunction twoSum(nums, target) {\n  // TODO: implement\n}\n\nmodule.exports = { twoSum };\n",
+        "python": "\"\"\"\nTwo Sum\n\nGiven a list of integers `nums` and an integer `target`,\nreturn the indices of the two numbers that add up to `target`.\n\nYou may assume each input has exactly one solution,\nand you may not use the same element twice.\n\"\"\"\n\n\ndef two_sum(nums: list[int], target: int) -> list[int]:\n    pass\n"
+      }
+    },
+    {
+      "title": "Two Sum — Optimized",
+      "description": "Optimize your twoSum to handle large inputs efficiently. Hint: use a hash map for O(n) time.",
+      "activeTests": [
+        "basic case",
+        "no solution returns undefined or empty",
+        "duplicate values",
+        "negative numbers",
+        "large input"
+      ],
+      "scaffold": {
+        "js": "",
+        "python": ""
+      }
+    },
+    {
+      "title": "Three Sum",
+      "description": "Implement threeSum(nums, target) that returns all unique triplets [i, j, k] where nums[i] + nums[j] + nums[k] === target. No duplicate triplets allowed.",
+      "activeTests": [
+        "basic case",
+        "no solution returns undefined or empty",
+        "duplicate values",
+        "negative numbers",
+        "large input",
+        "basic three sum",
+        "no three sum solution",
+        "three sum with duplicates",
+        "three sum negative numbers"
+      ],
+      "scaffold": {
+        "js": "\n/**\n * Three Sum\n *\n * Given an array of integers `nums` and an integer `target`,\n * return all unique triplets [nums[i], nums[j], nums[k]] such that\n * nums[i] + nums[j] + nums[k] === target.\n *\n * No duplicate triplets allowed. Order within triplets doesn't matter.\n *\n * @param {number[]} nums\n * @param {number} target\n * @returns {number[][]}\n */\nfunction threeSum(nums, target) {\n  // TODO: implement\n}\n\nmodule.exports.threeSum = threeSum;\n",
+        "python": "\n\ndef three_sum(nums: list[int], target: int) -> list[list[int]]:\n    \"\"\"Return all unique triplets that sum to target.\"\"\"\n    pass\n"
+      }
+    }
+  ]
+}

@@ -40,6 +40,23 @@ describe("loadProblemConfig (problem detection)", () => {
     expect(result.parts[0].activeTests).toHaveLength(2);
   });
 
+  test("includes expectedMinutes when present", () => {
+    fs.existsSync.mockReturnValue(true);
+    const configWithMinutes = { ...sampleConfig, expectedMinutes: 25 };
+    fs.readFileSync.mockReturnValue(JSON.stringify(configWithMinutes));
+
+    const result = loadProblemConfig("test-problem", "/fake");
+    expect(result.expectedMinutes).toBe(25);
+  });
+
+  test("returns null expectedMinutes when not present", () => {
+    fs.existsSync.mockReturnValue(true);
+    fs.readFileSync.mockReturnValue(JSON.stringify(sampleConfig));
+
+    const result = loadProblemConfig("test-problem", "/fake");
+    expect(result.expectedMinutes).toBeNull();
+  });
+
   test("throws for malformed JSON", () => {
     fs.existsSync.mockReturnValue(true);
     fs.readFileSync.mockReturnValue("{invalid json");
@@ -472,18 +489,20 @@ describe("getWorkspaceStatus", () => {
 // --- Main menu structure ---
 
 describe("main menu structure (structural verification)", () => {
-  test("menu has four choices: start, list, clear, exit", () => {
+  test("menu has five choices: start, list, stats, clear, exit", () => {
     const choices = [
       { name: "Start a Problem", value: "start" },
       { name: "Problem List", value: "list" },
+      { name: "Stats", value: "stats" },
       { name: "Clear a Problem", value: "clear" },
       { name: "Exit", value: "exit" },
     ];
 
-    expect(choices).toHaveLength(4);
+    expect(choices).toHaveLength(5);
     expect(choices.map((c) => c.value)).toEqual([
       "start",
       "list",
+      "stats",
       "clear",
       "exit",
     ]);

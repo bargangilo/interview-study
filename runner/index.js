@@ -1,7 +1,7 @@
 const path = require("path");
 const fs = require("fs");
 const { execFileSync, spawn } = require("child_process");
-const { select } = require("@inquirer/prompts");
+const { select, input } = require("@inquirer/prompts");
 const chalk = require("chalk");
 const { startWatching } = require("./watcher");
 const {
@@ -15,7 +15,21 @@ const {
   clearWorkspaceDir,
   getWorkspaceStatus,
 } = require("./config");
-const { showPartIntro, formatStatusBadge } = require("./ui");
+const {
+  showPartIntro,
+  formatStatusBadge,
+  formatGlobalStats,
+  formatProblemStats,
+} = require("./ui");
+const { createTimer } = require("./timer");
+const {
+  loadSession,
+  readAllSessions,
+  computeGlobalStats,
+  computeProblemStats,
+  writeSession,
+  writeSessionSync,
+} = require("./stats");
 
 const ROOT_DIR = path.resolve(__dirname, "..");
 const VSCODE_DATA_DIR = path.join(ROOT_DIR, ".vscode-data");
@@ -110,7 +124,7 @@ function problemHasLanguage(problem, language) {
   );
 }
 
-async function waitForQuit() {
+async function waitForQuit(timerController) {
   return new Promise((resolve) => {
     if (process.stdin.isTTY) {
       process.stdin.setRawMode(true);
@@ -126,6 +140,12 @@ async function waitForQuit() {
           process.stdin.setRawMode(false);
         }
         resolve();
+      } else if ((key === "p" || key === "P") && timerController) {
+        if (timerController.isPaused()) {
+          timerController.resume();
+        } else {
+          timerController.pause();
+        }
       }
     };
 
@@ -165,6 +185,7 @@ async function showMainMenu() {
     choices: [
       { name: "Start a Problem", value: "start" },
       { name: "Problem List", value: "list" },
+      { name: "Stats", value: "stats" },
       { name: "Clear a Problem", value: "clear" },
       { name: chalk.red("Exit"), value: "exit" },
     ],
@@ -227,13 +248,35 @@ async function startProblem() {
     });
   }
 
+  // Countdown prompt
+  let countdownSeconds = null;
+  const expectedMinutes = config.expectedMinutes || null;
+  const hint = expectedMinutes
+    ? chalk.gray(`  Expected time for this problem: ${expectedMinutes} minutes`)
+    : "";
+  if (hint) console.log(hint);
+
+  const countdownInput = await input({
+    message: "Set a time limit in minutes (leave blank for stopwatch mode):",
+    default: expectedMinutes ? String(expectedMinutes) : "",
+  });
+
+  const trimmed = countdownInput.trim();
+  if (trimmed !== "") {
+    const parsed = parseInt(trimmed, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      countdownSeconds = parsed * 60;
+    }
+  }
+
   // Ensure workspace/ directory exists
   ensureWorkspace(ROOT_DIR);
 
   // Workspace initialization — handle resume vs restart
   let startPart = 0;
+  let resumeChoice = "restart";
   if (hasWorkspaceFile(problem, language, ROOT_DIR)) {
-    const resumeChoice = await select({
+    resumeChoice = await select({
       message: "A previous session was found for this problem.",
       choices: [
         { name: "Resume where you left off", value: "resume" },
@@ -249,6 +292,88 @@ async function startProblem() {
   } else {
     writeInitialScaffold(problem, language, config, ROOT_DIR);
   }
+
+  // Create timer
+  const timerOptions = {
+    mode: countdownSeconds ? "countdown" : "stopwatch",
+    countdownSeconds,
+    totalElapsedSeconds: 0,
+    currentPartElapsedSeconds: 0,
+    totalPausedSeconds: 0,
+  };
+
+  // Restore timer state on resume
+  if (resumeChoice === "resume") {
+    const existingSession = loadSession(problem, ROOT_DIR);
+    if (existingSession) {
+      timerOptions.totalElapsedSeconds = existingSession.totalElapsedSeconds || 0;
+      timerOptions.currentPartElapsedSeconds = existingSession.currentPartElapsedSeconds || 0;
+      timerOptions.totalPausedSeconds = existingSession.totalPausedSeconds || 0;
+      if (existingSession.mode) timerOptions.mode = existingSession.mode;
+      if (existingSession.countdownSeconds) timerOptions.countdownSeconds = existingSession.countdownSeconds;
+    }
+  }
+
+  const timer = createTimer(timerOptions);
+
+  // Build initial session data
+  let sessionData = loadSession(problem, ROOT_DIR) || {
+    lastStarted: new Date().toISOString(),
+    totalElapsedSeconds: 0,
+    currentPartElapsedSeconds: 0,
+    isPaused: false,
+    pausedAt: null,
+    totalPausedSeconds: 0,
+    mode: timerOptions.mode,
+    countdownSeconds: timerOptions.countdownSeconds,
+    completed: false,
+    currentPart: startPart,
+    splits: [],
+    attempts: [],
+  };
+  sessionData.lastStarted = new Date().toISOString();
+
+  // Register session persistence on each timer tick
+  timer.onTick(() => {
+    const timerState = timer.getState();
+    sessionData.totalElapsedSeconds = timerState.totalElapsedSeconds;
+    sessionData.currentPartElapsedSeconds = timerState.currentPartElapsedSeconds;
+    sessionData.totalPausedSeconds = timerState.totalPausedSeconds;
+    sessionData.isPaused = timerState.isPaused;
+    sessionData.pausedAt = timerState.pausedAt;
+    writeSession(problem, sessionData, ROOT_DIR);
+  });
+
+  // SIGINT handler
+  let sigintFired = false;
+  const sigintHandler = () => {
+    if (sigintFired) return;
+    sigintFired = true;
+    timer.stop();
+    const timerState = timer.getState();
+    sessionData.totalElapsedSeconds = timerState.totalElapsedSeconds;
+    sessionData.currentPartElapsedSeconds = timerState.currentPartElapsedSeconds;
+    sessionData.totalPausedSeconds = timerState.totalPausedSeconds;
+    sessionData.isPaused = false;
+    sessionData.pausedAt = null;
+    // Append current attempt
+    sessionData.attempts.push({
+      date: sessionData.lastStarted,
+      totalSeconds: timerState.totalElapsedSeconds,
+      splits: [...sessionData.splits],
+      completed: sessionData.completed,
+      wasCountdown: timerOptions.mode === "countdown",
+      countdownSeconds: timerOptions.countdownSeconds,
+    });
+    try {
+      writeSessionSync(problem, sessionData, ROOT_DIR);
+    } catch {
+      // Best effort
+    }
+    console.log(chalk.gray("\n  Session saved. Goodbye.\n"));
+    process.exit(0);
+  };
+  process.on("SIGINT", sigintHandler);
 
   console.log(
     chalk.cyan(`\n  ${config.title}`) +
@@ -284,17 +409,45 @@ async function startProblem() {
     );
   }
 
-  // Start watching
+  // Start timer and watcher
+  timer.start();
+
   const controller = startWatching(
     problem,
     language,
     ROOT_DIR,
     config,
-    startPart
+    startPart,
+    timer
   );
 
-  await Promise.race([waitForQuit(), controller.completionPromise]);
+  let completed = false;
+  const completionWrapper = controller.completionPromise.then(() => {
+    completed = true;
+  });
+  await Promise.race([waitForQuit(timer), completionWrapper]);
 
+  // Session end — finalize
+  timer.stop();
+  const finalState = timer.getState();
+  sessionData.totalElapsedSeconds = finalState.totalElapsedSeconds;
+  sessionData.currentPartElapsedSeconds = finalState.currentPartElapsedSeconds;
+  sessionData.totalPausedSeconds = finalState.totalPausedSeconds;
+  sessionData.isPaused = false;
+  sessionData.pausedAt = null;
+  sessionData.completed = completed;
+  // Append attempt
+  sessionData.attempts.push({
+    date: sessionData.lastStarted,
+    totalSeconds: finalState.totalElapsedSeconds,
+    splits: [...sessionData.splits],
+    completed: sessionData.completed,
+    wasCountdown: timerOptions.mode === "countdown",
+    countdownSeconds: timerOptions.countdownSeconds,
+  });
+  writeSessionSync(problem, sessionData, ROOT_DIR);
+
+  process.removeListener("SIGINT", sigintHandler);
   await controller.close();
   console.log("\n");
 }
@@ -371,7 +524,56 @@ async function problemList() {
   }
 }
 
-// ---- Option 3: Clear a Problem ----
+// ---- Option 3: Stats ----
+
+async function showStats() {
+  const sessions = readAllSessions(ROOT_DIR);
+  const problems = loadAllProblems();
+
+  if (sessions.length === 0) {
+    console.log(
+      chalk.gray(
+        "\n  No stats yet — start a problem to begin tracking your progress.\n"
+      )
+    );
+    console.log(chalk.gray("  [Press any key to go back]"));
+    await waitForEnter();
+    return;
+  }
+
+  const globalStats = computeGlobalStats(sessions);
+  console.log("\n" + formatGlobalStats(globalStats));
+
+  while (true) {
+    const problemChoices = sessions.map(({ problemName }) => {
+      const prob = problems.find((p) => p.name === problemName);
+      const title = prob ? prob.config.title : problemName;
+      return { name: title, value: problemName };
+    });
+    problemChoices.push({
+      name: chalk.gray("\u2190 Back"),
+      value: "__back__",
+    });
+
+    const selected = await select({
+      message: "View problem stats:",
+      choices: problemChoices,
+    });
+
+    if (selected === "__back__") return;
+
+    const { session } = sessions.find((s) => s.problemName === selected);
+    const prob = problems.find((p) => p.name === selected);
+    const title = prob ? prob.config.title : selected;
+    const stats = computeProblemStats(selected, session);
+    console.log("\n" + formatProblemStats(title, stats));
+
+    console.log(chalk.gray("  [Press any key to go back]"));
+    await waitForEnter();
+  }
+}
+
+// ---- Option 4: Clear a Problem ----
 
 async function clearProblem() {
   while (true) {
@@ -443,6 +645,9 @@ async function main() {
         break;
       case "list":
         await problemList();
+        break;
+      case "stats":
+        await showStats();
         break;
       case "clear":
         await clearProblem();

@@ -49,6 +49,7 @@ function loadProblemConfig(problemName, rootDir) {
   return {
     title: raw.title || problemName,
     description: raw.description || "",
+    expectedMinutes: raw.expectedMinutes || null,
     parts: raw.parts,
   };
 }

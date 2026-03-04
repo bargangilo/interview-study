@@ -44,6 +44,7 @@ Test suite files live alongside the problem config inside `problems/<name>/`. Th
 |---|---|---|---|
 | `title` | string | No | Display name shown in the problem picker and problem list. Defaults to directory name. Keep it concise. |
 | `description` | string | No | Brief description shown below the title in the problem picker (truncated at 80 chars) and in the full problem list view. Should be a meaningful one-liner. |
+| `expectedMinutes` | integer | No | Suggested time limit in minutes. Pre-populates the countdown prompt at session start. See [docs/stats-and-timer.md](stats-and-timer.md). |
 | `parts` | array | **Yes** | Ordered list of parts. Must have at least one entry. |
 | `parts[].title` | string | No | Display name for the part, shown in the CLI during sessions and in the problem list detail view. |
 | `parts[].description` | string | No | Explanation of what to implement, shown during sessions and in the problem list detail view. |
@@ -160,6 +161,7 @@ A two-part problem called `flatten-and-sum`:
 {
   "title": "Flatten and Sum",
   "description": "Flatten nested arrays and sum their elements",
+  "expectedMinutes": 25,
   "parts": [
     {
       "title": "Flatten a nested array",

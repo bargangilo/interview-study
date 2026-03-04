@@ -12,13 +12,14 @@ yarn install
 
 ## How It Works
 
-The CLI opens to a main menu with four options:
+The CLI opens to a main menu with five options:
 
 ```
 Interview Study
 ───────────────
 ❯ Start a Problem
   Problem List
+  Stats
   Clear a Problem
   Exit
 ```
@@ -27,10 +28,12 @@ Interview Study
 
 1. Browse a list of problems showing titles, descriptions, and workspace status badges
 2. Choose JavaScript or Python
-3. If a previous session exists, choose to **resume** or **restart from scratch**
-4. Edit the solution file — tests re-run automatically on every save
-5. A summary line shows pass/fail counts (no raw output to avoid spoilers)
-6. Press **Q** to return to the main menu
+3. Set a time limit (countdown) or press Enter for stopwatch mode — the problem's `expectedMinutes` pre-populates the prompt
+4. If a previous session exists, choose to **resume** or **restart from scratch**
+5. Edit the solution file — tests re-run automatically on every save
+6. A summary line shows pass/fail counts, part progress, and a live timer
+7. Press **P** to pause/resume the timer
+8. Press **Q** to return to the main menu (session is saved automatically)
 
 Each problem in the picker shows its title and description from `problem.json`, plus a status badge if you've started it before:
 - **[in progress]** — workspace exists, working on Part 1
@@ -40,6 +43,10 @@ Each problem in the picker shows its title and description from `problem.json`, 
 ### Problem List
 
 Browse all available problems in a read-only view. Select any problem to see full details including part titles, descriptions, and current status. This is informational only — no session is started.
+
+### Stats
+
+View your practice statistics across all problems. Shows total practice time, problems attempted/completed, average and best solve times, and your current streak. Select any problem to see per-problem stats including attempt history, best splits, and countdown vs. stopwatch breakdown.
 
 ### Clear a Problem
 
@@ -132,6 +139,20 @@ A previous session was found for this problem.
 **Resume** (default) reads the existing file and infers your current part from the delimiter comments in the file. **Restart** overwrites the file with the Part 1 scaffold.
 
 See [docs/problem-schema.md](docs/problem-schema.md) for the full authoring reference.
+
+## Timer & Session Tracking
+
+Every session is timed automatically. You can choose between **stopwatch** (count up) and **countdown** (set a time limit) modes at session start. The timer appears in the summary line and updates every second.
+
+- **Pause/resume:** Press **P** during a session
+- **Countdown colors:** Green (>50% left) → Yellow (25–50%) → Red (<25%) → Overtime
+- **Milestone warnings:** Printed at 15/30/45 minutes (stopwatch) or 50%/25% remaining (countdown)
+- **Session saves:** Time is persisted to `workspace/<name>/session.json` every second and on exit
+- **Ctrl+C handling:** Sessions are saved before exiting — no progress is lost
+- **Resume:** When resuming, your timer picks up where you left off with accumulated time restored
+- **Part splits:** Time per part is recorded when you advance to the next part
+
+See [docs/stats-and-timer.md](docs/stats-and-timer.md) for the full reference.
 
 ## Testing the Runner
 
