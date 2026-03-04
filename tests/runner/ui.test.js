@@ -4,6 +4,7 @@ const {
   showPartComplete,
   showAllComplete,
   showWatching,
+  formatStatusBadge,
 } = require("../../runner/ui");
 
 let stdoutOutput;
@@ -155,5 +156,31 @@ describe("VS Code not-found warning format", () => {
     expect(warning).toContain("VS Code not found on PATH");
     expect(warning).toContain("skipping editor launch");
     expect(warning).toContain("README");
+  });
+});
+
+// --- Status badge ---
+
+describe("formatStatusBadge", () => {
+  test("returns empty string for null status", () => {
+    expect(formatStatusBadge(null)).toBe("");
+  });
+
+  test("returns green badge for complete status", () => {
+    const badge = formatStatusBadge("complete");
+    const clean = stripAnsi(badge);
+    expect(clean).toBe(" [complete]");
+  });
+
+  test("returns yellow badge for in progress status", () => {
+    const badge = formatStatusBadge("in progress");
+    const clean = stripAnsi(badge);
+    expect(clean).toBe(" [in progress]");
+  });
+
+  test("returns yellow badge for part N reached status", () => {
+    const badge = formatStatusBadge("part 2 reached");
+    const clean = stripAnsi(badge);
+    expect(clean).toBe(" [part 2 reached]");
   });
 });

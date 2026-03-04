@@ -12,19 +12,49 @@ yarn install
 
 ## How It Works
 
-1. Select a problem from the interactive menu
+The CLI opens to a main menu with four options:
+
+```
+Interview Study
+───────────────
+❯ Start a Problem
+  Problem List
+  Clear a Problem
+  Exit
+```
+
+### Start a Problem
+
+1. Browse a list of problems showing titles, descriptions, and workspace status badges
 2. Choose JavaScript or Python
 3. If a previous session exists, choose to **resume** or **restart from scratch**
 4. Edit the solution file — tests re-run automatically on every save
 5. A summary line shows pass/fail counts (no raw output to avoid spoilers)
-6. Press **Q** to return to the problem menu
+6. Press **Q** to return to the main menu
+
+Each problem in the picker shows its title and description from `problem.json`, plus a status badge if you've started it before:
+- **[in progress]** — workspace exists, working on Part 1
+- **[part N reached]** — advanced to Part N
+- **[complete]** — all parts finished
+
+### Problem List
+
+Browse all available problems in a read-only view. Select any problem to see full details including part titles, descriptions, and current status. This is informational only — no session is started.
+
+### Clear a Problem
+
+Remove your workspace for a problem to start fresh. Only problems with existing workspaces are shown. A confirmation prompt prevents accidental clears.
+
+### Exit
+
+Cleanly terminates the CLI.
 
 ## Project Structure
 
 ```
 problems/                          ← read-only source of truth (never modified at runtime)
   <problem-name>/
-    problem.json                   # Multi-part config (optional)
+    problem.json                   # Problem config (required for CLI listing)
     main.js                        # JavaScript stub (used for problem detection)
     main.py                        # Python stub (used for problem detection)
     suite.test.js                  # Jest tests (multi-part problems)
@@ -58,13 +88,16 @@ The `workspace/` folder is committed to the repo (via `.gitkeep`) but its conten
 - **User progress is local only** — it will not be pushed to a shared repo
 - The repo stays cleanly clonable — `git clone` gives everyone a fresh start
 - Selecting a problem copies the starting scaffold into `workspace/<problem-name>/` automatically
-- Your work persists between sessions until you explicitly choose "Restart from scratch"
+- Your work persists between sessions until you explicitly choose "Restart from scratch" or use "Clear a Problem"
 
 ## Adding a New Problem
 
-1. Create `problems/<name>/main.js` and/or `main.py` with a stub function
-2. Create `problems/<name>/sample.test.js` and/or `test_sample.py` with test cases inside the same problem folder
-3. The CLI auto-detects new problems on each run
+1. Create `problems/<name>/problem.json` with at least a `title`, `description`, and `parts` array (see [docs/problem-schema.md](docs/problem-schema.md))
+2. Create `problems/<name>/main.js` and/or `main.py` with a stub function
+3. Create `problems/<name>/suite.test.js` and/or `suite.test.py` with test cases inside the same problem folder
+4. The CLI auto-detects new problems on each run
+
+Problems without a `problem.json` are skipped in the CLI with a warning. The `title` and `description` fields are displayed in the problem picker and problem list, so they should be concise and meaningful.
 
 ### Conventions
 
@@ -76,13 +109,13 @@ The `workspace/` folder is committed to the repo (via `.gitkeep`) but its conten
 
 ## Multi-Part Problems
 
-Problems can be split into progressive parts using a `problem.json` file. When you select a multi-part problem, the CLI:
+Problems can be split into progressive parts using the `parts` array in `problem.json`. When you select a multi-part problem, the CLI:
 
 1. Writes starter code (scaffold) to the workspace file
 2. Runs only the tests for the current part
 3. When all tests pass, appends the next part's scaffold to the same file
 4. Shows progress: `Part X of Y unlocked`
-5. After all parts complete, returns to the problem menu
+5. After all parts complete, returns to the main menu
 
 You never switch files — the single `main.js` or `main.py` accumulates content as you progress. The total number of parts is intentionally hidden during a session; only the unlocked count is shown.
 
@@ -129,3 +162,4 @@ When you select a problem, the CLI automatically opens VS Code via `interview-st
 ## Troubleshooting
 
 - **VS Code doesn't open automatically:** The `code` CLI is not on your `$PATH`. Follow the [VS Code command line setup instructions](https://code.visualstudio.com/docs/configure/command-line) to install it (Cmd+Shift+P → "Shell Command: Install 'code' command in PATH").
+- **Problem not showing in the menu:** Ensure it has a valid `problem.json` file. Problems without one are skipped with a warning.

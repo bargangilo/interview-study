@@ -9,6 +9,7 @@ const {
   buildTestFilter,
   inferCurrentPart,
   appendPartScaffold,
+  writeCompletionMarker,
 } = require("../../runner/config");
 
 const sampleConfig = require("./fixtures/sample-problem.json");
@@ -250,6 +251,46 @@ describe("cumulative test accumulation", () => {
     expect(part2Filter).toContain("test a");
     expect(part2Filter).toContain("test c");
     expect(part2Filter).toContain("test d");
+  });
+});
+
+// --- Completion marker ---
+
+describe("writeCompletionMarker", () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  test("appends JS completion marker on final part completion", () => {
+    fs.appendFileSync.mockImplementation(() => {});
+
+    writeCompletionMarker("test-problem", "JavaScript", "/fake");
+
+    expect(fs.appendFileSync).toHaveBeenCalledWith(
+      path.join("/fake", "workspace", "test-problem", "main.js"),
+      "\n// ---- COMPLETE ----\n",
+      "utf8"
+    );
+  });
+
+  test("appends Python completion marker on final part completion", () => {
+    fs.appendFileSync.mockImplementation(() => {});
+
+    writeCompletionMarker("test-problem", "Python", "/fake");
+
+    expect(fs.appendFileSync).toHaveBeenCalledWith(
+      path.join("/fake", "workspace", "test-problem", "main.py"),
+      "\n# ---- COMPLETE ----\n",
+      "utf8"
+    );
+  });
+
+  test("completion marker is written to workspace path, not problems path", () => {
+    fs.appendFileSync.mockImplementation(() => {});
+
+    writeCompletionMarker("test-problem", "JavaScript", "/fake");
+
+    const writtenPath = fs.appendFileSync.mock.calls[0][0];
+    expect(writtenPath).toContain("workspace");
+    expect(writtenPath).not.toMatch(/\/problems\//);
   });
 });
 

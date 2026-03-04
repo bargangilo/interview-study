@@ -1,6 +1,9 @@
 const path = require("path");
 const fs = require("fs");
 
+const COMPLETION_MARKER_JS = "\n// ---- COMPLETE ----\n";
+const COMPLETION_MARKER_PY = "\n# ---- COMPLETE ----\n";
+
 /**
  * Loads and validates problem.json for a given problem.
  * Returns null if no problem.json exists (legacy single-part problem).
@@ -147,6 +150,83 @@ function buildTestFilter(activeTests, language) {
   }
 }
 
+/**
+ * Checks if a workspace directory exists for the given problem.
+ */
+function hasWorkspaceDir(problemName, rootDir) {
+  const dir = path.join(rootDir, "workspace", problemName);
+  return fs.existsSync(dir);
+}
+
+/**
+ * Deletes the workspace directory for the given problem.
+ */
+function clearWorkspaceDir(problemName, rootDir) {
+  const dir = path.join(rootDir, "workspace", problemName);
+  if (fs.existsSync(dir)) {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/**
+ * Appends a completion marker to the workspace file.
+ */
+function writeCompletionMarker(problemName, language, rootDir) {
+  const filePath = workspacePath(problemName, language, rootDir);
+  const marker =
+    language === "JavaScript" ? COMPLETION_MARKER_JS : COMPLETION_MARKER_PY;
+  fs.appendFileSync(filePath, marker, "utf8");
+}
+
+/**
+ * Returns workspace status for a problem: null, "in progress", "part N reached", or "complete".
+ * Scans all workspace files (JS and Python) for the highest progress.
+ */
+function getWorkspaceStatus(problemName, config, rootDir) {
+  if (!hasWorkspaceDir(problemName, rootDir)) return null;
+
+  let maxPartNum = 0;
+  let complete = false;
+
+  for (const lang of ["JavaScript", "Python"]) {
+    const filePath = workspacePath(problemName, lang, rootDir);
+    if (!fs.existsSync(filePath)) continue;
+    const content = fs.readFileSync(filePath, "utf8");
+    if (content.trim().length === 0) continue;
+
+    // Check for completion marker
+    if (
+      content.includes("// ---- COMPLETE ----") ||
+      content.includes("# ---- COMPLETE ----")
+    ) {
+      complete = true;
+    }
+
+    // Scan for part delimiters
+    const jsPattern = /\/\/ ---- Part (\d+) ----/g;
+    const pyPattern = /# ---- Part (\d+) ----/g;
+    let match;
+    while ((match = jsPattern.exec(content)) !== null) {
+      const num = parseInt(match[1], 10);
+      if (num > maxPartNum) maxPartNum = num;
+    }
+    while ((match = pyPattern.exec(content)) !== null) {
+      const num = parseInt(match[1], 10);
+      if (num > maxPartNum) maxPartNum = num;
+    }
+  }
+
+  if (complete) return "complete";
+  if (maxPartNum > 0) return `part ${maxPartNum} reached`;
+
+  // Check if any non-empty workspace file exists
+  for (const lang of ["JavaScript", "Python"]) {
+    if (hasWorkspaceFile(problemName, lang, rootDir)) return "in progress";
+  }
+
+  return null;
+}
+
 module.exports = {
   loadProblemConfig,
   ensureWorkspace,
@@ -156,4 +236,8 @@ module.exports = {
   appendPartScaffold,
   buildTestFilter,
   inferCurrentPart,
+  hasWorkspaceDir,
+  clearWorkspaceDir,
+  writeCompletionMarker,
+  getWorkspaceStatus,
 };

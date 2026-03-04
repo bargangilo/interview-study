@@ -42,11 +42,11 @@ Test suite files live alongside the problem config inside `problems/<name>/`. Th
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `title` | string | No | Display name for the problem. Defaults to directory name. |
-| `description` | string | No | Brief description shown when the problem is selected. |
+| `title` | string | No | Display name shown in the problem picker and problem list. Defaults to directory name. Keep it concise. |
+| `description` | string | No | Brief description shown below the title in the problem picker (truncated at 80 chars) and in the full problem list view. Should be a meaningful one-liner. |
 | `parts` | array | **Yes** | Ordered list of parts. Must have at least one entry. |
-| `parts[].title` | string | No | Display name for the part. |
-| `parts[].description` | string | No | Explanation of what to implement. |
+| `parts[].title` | string | No | Display name for the part, shown in the CLI during sessions and in the problem list detail view. |
+| `parts[].description` | string | No | Explanation of what to implement, shown during sessions and in the problem list detail view. |
 | `parts[].activeTests` | string[] | **Yes** | Test names to run when this part is active. Must be non-empty. |
 | `parts[].scaffold.js` | string | No | JavaScript starter code for this part. |
 | `parts[].scaffold.python` | string | No | Python starter code for this part. |

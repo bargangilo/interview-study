@@ -67,6 +67,16 @@ function showAllComplete(problemName) {
   console.log(chalk.gray("  Returning to menu...\n"));
 }
 
+/**
+ * Formats a workspace status string as a colored badge.
+ * Returns empty string if status is null.
+ */
+function formatStatusBadge(status) {
+  if (!status) return "";
+  if (status === "complete") return chalk.green(" [complete]");
+  return chalk.yellow(` [${status}]`);
+}
+
 module.exports = {
   clearLine,
   showSummary,
@@ -75,4 +85,5 @@ module.exports = {
   showPartIntro,
   showPartComplete,
   showAllComplete,
+  formatStatusBadge,
 };

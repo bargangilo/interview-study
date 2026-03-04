@@ -19,10 +19,10 @@ Hot-reload coding study environment for practicing interview problems. Users sel
 ## Architecture
 
 The CLI (`runner/`) is a Node.js app with four modules:
-- `runner/index.js` — Main loop: detects problems in `problems/`, presents interactive menu via `@inquirer/prompts`, loads problem config, initializes workspace, handles resume/restart prompt, launches watcher, listens for Q to quit
+- `runner/index.js` — Main menu (Start a Problem, Problem List, Clear a Problem, Exit), problem picker with descriptions and status badges, workspace init, resume/restart prompt, VS Code launch, session lifecycle
 - `runner/watcher.js` — Uses `chokidar` to watch the workspace solution file; spawns `yarn jest` or `pytest` on change; parses pass/fail counts from test runner output; manages multi-part state and progression
-- `runner/ui.js` — Terminal output helpers (summary line, status indicators, part progress)
-- `runner/config.js` — Loads/validates `problem.json`, manages workspace paths, writes scaffolds, builds test filters, infers resume state from part delimiters
+- `runner/ui.js` — Terminal output helpers (summary line, status indicators, part progress, status badge formatting)
+- `runner/config.js` — Loads/validates `problem.json`, manages workspace paths, writes scaffolds, builds test filters, infers resume state from part delimiters, workspace status detection, completion markers
 
 ### Key Path Convention
 
@@ -34,12 +34,12 @@ Problem test suites (`suite.test.js`, `sample.test.js`, etc.) live inside `probl
 
 ## Adding a New Problem
 
-1. Create `problems/<name>/main.js` with a stub function exported via `module.exports`
-2. Create `problems/<name>/main.py` with a stub function
-3. Create `problems/<name>/sample.test.js` (Jest) importing from `../../workspace/<name>/main`
-4. Create `problems/<name>/test_sample.py` (pytest) with `sys.path` pointing to `../../workspace/<name>`
+1. Create `problems/<name>/problem.json` with `title`, `description`, and `parts` array (see `docs/problem-schema.md`)
+2. Create `problems/<name>/main.js` with a stub function exported via `module.exports`
+3. Create `problems/<name>/main.py` with a stub function
+4. Create test files in `problems/<name>/` importing from `../../workspace/<name>/main`
 
-The CLI auto-detects problem directories — no registration needed.
+The CLI auto-detects problem directories. Problems without a `problem.json` are skipped with a warning.
 
 ### Multi-Part Problems
 
@@ -48,6 +48,17 @@ The CLI auto-detects problem directories — no registration needed.
 3. Create `problems/<name>/suite.test.js` and `problems/<name>/suite.test.py` with all tests for all parts
 4. Test names in `activeTests` use spaces (Jest-style); Python function names mirror with underscores prefixed by `test_`
 5. Multi-part test files are named `suite.test.*`, not `sample.test.*`
+
+## Testing
+
+Runner unit tests live in `tests/runner/` and cover config loading, workspace management, UI output, and watcher logic. Always add or update tests when making changes to the runner:
+
+- **New features:** Add tests covering the new behavior in the appropriate test file (`index.test.js`, `watcher.test.js`, or `ui.test.js`)
+- **Bug fixes:** Add a regression test that would have caught the bug
+- **Refactors:** Ensure existing tests still pass; update assertions if behavior intentionally changed
+- Run `yarn test` to verify all tests pass before considering work complete
+
+Test files mock `fs`, `child_process`, and `chokidar` — no real filesystem or process calls. Use the existing test patterns (mock setup in `beforeEach`/per-test, `stripAnsi` helper for UI tests, fixture files in `tests/runner/fixtures/`).
 
 ## Conventions
 

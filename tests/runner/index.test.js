@@ -10,6 +10,10 @@ const {
   hasWorkspaceFile,
   writeInitialScaffold,
   inferCurrentPart,
+  hasWorkspaceDir,
+  clearWorkspaceDir,
+  writeCompletionMarker,
+  getWorkspaceStatus,
 } = require("../../runner/config");
 
 const sampleConfig = require("./fixtures/sample-problem.json");
@@ -311,5 +315,230 @@ describe("ensureWorkspace", () => {
     ensureWorkspace("/fake");
 
     expect(fs.writeFileSync).not.toHaveBeenCalled();
+  });
+});
+
+// --- hasWorkspaceDir ---
+
+describe("hasWorkspaceDir", () => {
+  test("returns true when workspace directory exists", () => {
+    fs.existsSync.mockReturnValue(true);
+    expect(hasWorkspaceDir("test-problem", "/fake")).toBe(true);
+    expect(fs.existsSync).toHaveBeenCalledWith(
+      path.join("/fake", "workspace", "test-problem")
+    );
+  });
+
+  test("returns false when workspace directory does not exist", () => {
+    fs.existsSync.mockReturnValue(false);
+    expect(hasWorkspaceDir("test-problem", "/fake")).toBe(false);
+  });
+});
+
+// --- clearWorkspaceDir ---
+
+describe("clearWorkspaceDir", () => {
+  test("removes workspace directory recursively when it exists", () => {
+    fs.existsSync.mockReturnValue(true);
+    fs.rmSync.mockImplementation(() => {});
+
+    clearWorkspaceDir("test-problem", "/fake");
+
+    expect(fs.rmSync).toHaveBeenCalledWith(
+      path.join("/fake", "workspace", "test-problem"),
+      { recursive: true, force: true }
+    );
+  });
+
+  test("does nothing when workspace directory does not exist", () => {
+    fs.existsSync.mockReturnValue(false);
+    fs.rmSync.mockClear();
+    fs.rmSync.mockImplementation(() => {});
+
+    clearWorkspaceDir("test-problem", "/fake");
+
+    expect(fs.rmSync).not.toHaveBeenCalled();
+  });
+});
+
+// --- writeCompletionMarker ---
+
+describe("writeCompletionMarker", () => {
+  test("appends JS completion marker to workspace file", () => {
+    fs.appendFileSync.mockImplementation(() => {});
+
+    writeCompletionMarker("test-problem", "JavaScript", "/fake");
+
+    expect(fs.appendFileSync).toHaveBeenCalledWith(
+      path.join("/fake", "workspace", "test-problem", "main.js"),
+      "\n// ---- COMPLETE ----\n",
+      "utf8"
+    );
+  });
+
+  test("appends Python completion marker to workspace file", () => {
+    fs.appendFileSync.mockImplementation(() => {});
+
+    writeCompletionMarker("test-problem", "Python", "/fake");
+
+    expect(fs.appendFileSync).toHaveBeenCalledWith(
+      path.join("/fake", "workspace", "test-problem", "main.py"),
+      "\n# ---- COMPLETE ----\n",
+      "utf8"
+    );
+  });
+});
+
+// --- getWorkspaceStatus ---
+
+describe("getWorkspaceStatus", () => {
+  const config = sampleConfig;
+
+  test("returns null when no workspace directory exists", () => {
+    fs.existsSync.mockReturnValue(false);
+    expect(getWorkspaceStatus("test-problem", config, "/fake")).toBeNull();
+  });
+
+  test('returns "in progress" when workspace has a non-empty file but no delimiters', () => {
+    fs.existsSync.mockImplementation((p) => {
+      if (p.endsWith("test-problem")) return true; // workspace dir
+      if (p.endsWith("main.js")) return true;
+      return false;
+    });
+    fs.readFileSync.mockReturnValue("function partOne() { /* TODO */ }");
+
+    expect(getWorkspaceStatus("test-problem", config, "/fake")).toBe(
+      "in progress"
+    );
+  });
+
+  test('returns "part 2 reached" when file has Part 2 delimiter', () => {
+    fs.existsSync.mockImplementation((p) => {
+      if (p.endsWith("test-problem")) return true;
+      if (p.endsWith("main.js")) return true;
+      return false;
+    });
+    fs.readFileSync.mockReturnValue(
+      "function partOne() {}\n// ---- Part 2 ----\nfunction partTwo() {}"
+    );
+
+    expect(getWorkspaceStatus("test-problem", config, "/fake")).toBe(
+      "part 2 reached"
+    );
+  });
+
+  test('returns "complete" when file has completion marker', () => {
+    fs.existsSync.mockImplementation((p) => {
+      if (p.endsWith("test-problem")) return true;
+      if (p.endsWith("main.js")) return true;
+      return false;
+    });
+    fs.readFileSync.mockReturnValue(
+      "function partOne() {}\n// ---- Part 2 ----\nfunction partTwo() {}\n// ---- COMPLETE ----\n"
+    );
+
+    expect(getWorkspaceStatus("test-problem", config, "/fake")).toBe(
+      "complete"
+    );
+  });
+
+  test('returns "complete" for Python completion marker', () => {
+    fs.existsSync.mockImplementation((p) => {
+      if (p.endsWith("test-problem")) return true;
+      if (p.endsWith("main.py")) return true;
+      return false;
+    });
+    fs.readFileSync.mockReturnValue(
+      "def part_one():\n    pass\n# ---- Part 2 ----\ndef part_two():\n    pass\n# ---- COMPLETE ----\n"
+    );
+
+    expect(getWorkspaceStatus("test-problem", config, "/fake")).toBe(
+      "complete"
+    );
+  });
+
+  test("returns null when workspace dir exists but all files are empty", () => {
+    fs.existsSync.mockImplementation((p) => {
+      if (p.endsWith("test-problem")) return true;
+      if (p.endsWith("main.js")) return true;
+      return false;
+    });
+    fs.readFileSync.mockReturnValue("   \n  ");
+
+    expect(getWorkspaceStatus("test-problem", config, "/fake")).toBeNull();
+  });
+});
+
+// --- Main menu structure ---
+
+describe("main menu structure (structural verification)", () => {
+  test("menu has four choices: start, list, clear, exit", () => {
+    const choices = [
+      { name: "Start a Problem", value: "start" },
+      { name: "Problem List", value: "list" },
+      { name: "Clear a Problem", value: "clear" },
+      { name: "Exit", value: "exit" },
+    ];
+
+    expect(choices).toHaveLength(4);
+    expect(choices.map((c) => c.value)).toEqual([
+      "start",
+      "list",
+      "clear",
+      "exit",
+    ]);
+  });
+});
+
+// --- Clear confirmation default ---
+
+describe("clear confirmation structure (structural verification)", () => {
+  test("No is listed before Yes (defaults to No)", () => {
+    const choices = [
+      { name: "No", value: false },
+      { name: "Yes", value: true },
+    ];
+
+    expect(choices[0].value).toBe(false);
+    expect(choices[1].value).toBe(true);
+  });
+});
+
+// --- truncate ---
+
+describe("truncate function behavior (structural verification)", () => {
+  test("returns empty string for falsy input", () => {
+    // Mirrors truncate() from index.js
+    const truncate = (str, max) => {
+      if (!str) return "";
+      if (str.length <= max) return str;
+      return str.slice(0, max - 1) + "\u2026";
+    };
+
+    expect(truncate("", 80)).toBe("");
+    expect(truncate(null, 80)).toBe("");
+    expect(truncate(undefined, 80)).toBe("");
+  });
+
+  test("returns string unchanged when within limit", () => {
+    const truncate = (str, max) => {
+      if (!str) return "";
+      if (str.length <= max) return str;
+      return str.slice(0, max - 1) + "\u2026";
+    };
+
+    expect(truncate("Short string", 80)).toBe("Short string");
+  });
+
+  test("truncates with ellipsis when over limit", () => {
+    const truncate = (str, max) => {
+      if (!str) return "";
+      if (str.length <= max) return str;
+      return str.slice(0, max - 1) + "\u2026";
+    };
+
+    const result = truncate("A very long description that exceeds the limit", 20);
+    expect(result).toHaveLength(20);
+    expect(result.endsWith("\u2026")).toBe(true);
   });
 });

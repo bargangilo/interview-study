@@ -8,7 +8,11 @@ const {
   showPartComplete,
   showAllComplete,
 } = require("./ui");
-const { appendPartScaffold, buildTestFilter } = require("./config");
+const {
+  appendPartScaffold,
+  buildTestFilter,
+  writeCompletionMarker,
+} = require("./config");
 
 function parseJestOutput(stdout) {
   // Extract the Tests summary line, then parse passed/failed independently.
@@ -161,6 +165,8 @@ function startWatching(problem, language, rootDir, config, startPart) {
         const nextPart = currentPart + 1;
         if (nextPart >= config.parts.length) {
           // All parts complete
+          ignoreNextChange = true;
+          writeCompletionMarker(problem, language, rootDir);
           showAllComplete(problem);
           _resolveCompletion();
         } else {
