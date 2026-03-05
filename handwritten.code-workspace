@@ -6,6 +6,7 @@
   ],
   "settings": {
     // Editor settings (workspace-compatible)
+    "files.autoSave": "off",
     "editor.inlineSuggest.enabled": false,
     "editor.minimap.enabled": false,
     "editor.scrollbar.vertical": "auto",

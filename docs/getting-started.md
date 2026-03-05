@@ -86,7 +86,10 @@ The countdown prompt appears. If the problem has a suggested time, it pre-popula
 
 VS Code opens (if available) with your solution file. The CLI shows the session screen with:
 - The current part title and description
+- A controls hint line (save to test, pause, quit)
 - A summary line with test results, last run time, and timer
+
+Auto-save is disabled in the practice VS Code workspace intentionally. Saves are manual so you control exactly when tests run — use **Cmd+S** (Mac) or **Ctrl+S** (Windows/Linux) to save and trigger a test run. If you save a file with an infinite loop or hanging code, the test runner will wait until its timeout expires before reporting failure.
 
 Open the workspace file in your editor and start implementing the function. When you save the file, the CLI detects the change and runs the test suite automatically. Results appear in the summary line within a few seconds.
 

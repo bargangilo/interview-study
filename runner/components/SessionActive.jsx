@@ -25,6 +25,7 @@ const VSCODE_USER_SETTINGS = {
   "github.copilot.enable": { "*": false },
   "github.copilot.editor.enableCodeActions": false,
   "chat.commandCenter.enabled": false,
+  "files.autoSave": "off",
   "editor.inlineSuggest.enabled": false,
   "workbench.sideBar.visible": false,
   "workbench.secondarySideBar.defaultVisibility": "hidden",
@@ -303,8 +304,7 @@ export default function SessionActive({
   return (
     <>
       <Text color="cyan">{"\n  "}Watching {problem} ({language})</Text>
-      <Text color="gray">{"  "}— save the file to run tests</Text>
-      <Text color="gray">{"  "}Press Q to go back to the problem menu | P to pause/resume timer{"\n"}</Text>
+      <Text dimColor>{"  "}Save in VS Code to run tests ({"\u2318"}S / Ctrl+S)  {"·"}  P pause  {"·"}  Q quit  {"·"}  L logs{"\n"}</Text>
 
       <Static items={messages}>
         {(msg) => {
