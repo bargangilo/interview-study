@@ -1,3 +1,7 @@
+---
+name: generate-problem
+description: Generates a complete interview problem with test suites, user-approved concept proposal, and mandatory quality checklist.
+---
 
 # Generate Problem
 

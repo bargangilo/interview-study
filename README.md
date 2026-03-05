@@ -86,16 +86,21 @@ A read-only browser for all available problems. Select any problem to see its fu
 
 Removes your workspace directory for a problem, deleting the solution file and session data. Only problems with existing workspaces appear. A confirmation prompt (defaulting to No) prevents accidental clears.
 
+### :outbox_tray: Export Skills
+
+Exports agent skill files from `.claude/skills/` to `.agents/skills/` for use with non-Claude-Code agents (Cursor, GitHub Copilot, Aider, etc.). Strips Claude Code's YAML frontmatter so the exported files are plain markdown. Also available as a standalone script: `node .agents/scripts/init-skills.js`.
+
 ---
 
 ## Project Structure
 
 ```
+.claude/skills/              # Native Claude Code skill files (slash commands)
 .agents/                     # Agent skills system (no runtime dependency)
-  skills/                    #   Skill instruction files for AI agents
   scripts/                   #   Randomization and utility scripts (with tests in tests/scripts/)
   templates/                 #   Schema and config templates
   context/                   #   Domain knowledge documents
+  skills/                    #   Generated exports for non-Claude-Code agents (gitignored)
 problems/                    # Read-only problem definitions (never modified at runtime)
   <name>/                    #   problem.json, stubs (main.js/py), test suites
 workspace/                   # Gitignored working area — solutions, sessions

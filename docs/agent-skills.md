@@ -19,7 +19,7 @@ Before using any skill:
 
 ### Claude Code
 
-Claude Code supports slash commands that map directly to skill files. Invoke any skill by typing:
+Skills are registered as native Claude Code slash commands. Invoke any skill by typing:
 
 ```
 /generate-problem
@@ -28,14 +28,14 @@ Claude Code supports slash commands that map directly to skill files. Invoke any
 /hint
 ```
 
-Claude Code reads files directly from the repo, so all context documents and templates are automatically accessible. No additional setup is required beyond having the repo as your working directory.
+Claude Code reads skills from `.claude/skills/<name>/SKILL.md` automatically. No additional setup or path reference is needed — the slash commands are available as soon as you open the repo as your working directory.
 
 ### Cursor
 
 In Cursor's chat interface, reference the skill file explicitly:
 
 ```
-@.agents/skills/generate-problem.md Please execute this skill.
+@.claude/skills/generate-problem/SKILL.md Please execute this skill.
 ```
 
 Cursor indexes the repo for file access. If the agent does not pick up the skill file automatically, paste the file path and ask it to read and follow the instructions. Cursor's Composer mode works well for multi-step skills like `/generate-problem` where files need to be written.
@@ -45,7 +45,7 @@ Cursor indexes the repo for file access. If the agent does not pick up the skill
 Copilot Chat does not natively support slash command skill files. Reference the skill file in your message:
 
 ```
-Read the file .agents/skills/generate-problem.md and execute the instructions in it.
+Read the file .claude/skills/generate-problem/SKILL.md and execute the instructions in it.
 ```
 
 If Copilot cannot access the file directly, open the skill file in your editor first so it appears in the context window, then ask Copilot to follow the instructions.
@@ -55,13 +55,13 @@ If Copilot cannot access the file directly, open the skill file in your editor f
 Pass the skill file as context when starting Aider, or add it during a session:
 
 ```bash
-aider --read .agents/skills/generate-problem.md
+aider --read .claude/skills/generate-problem/SKILL.md
 ```
 
 Or during a session:
 
 ```
-/read .agents/skills/generate-problem.md
+/read .claude/skills/generate-problem/SKILL.md
 ```
 
 Then ask: "Execute the skill described in generate-problem.md." Aider has full file access to the repo by default.
@@ -70,7 +70,7 @@ Then ask: "Execute the skill described in generate-problem.md." Aider has full f
 
 For any agent not listed above:
 
-1. Open `.agents/skills/<skill-name>.md` and copy its full contents.
+1. Open `.claude/skills/<skill-name>/SKILL.md` and copy its full contents.
 2. Paste the contents into the agent's context window or chat.
 3. Tell the agent: "Follow these instructions step by step. The working directory is the root of this repository."
 4. Ensure the agent has file read/write access to the repo. If it cannot read `.agents/context/` files, paste the relevant context documents into the conversation as well.
@@ -90,10 +90,16 @@ For any agent not listed above:
    ```
    Navigate through the menu to confirm it launches correctly. Exit with Q or Ctrl+C.
 
-3. **Create your config:**
+3. **Export skills for non-Claude-Code agents (optional):**
+   ```bash
+   node .agents/scripts/init-skills.js
+   ```
+   This generates `.agents/skills/<name>.md` files from the canonical `.claude/skills/` source. You can also run this from the CLI's main menu via **Export Skills**. Claude Code users can skip this step — skills are available as native slash commands without it.
+
+4. **Create your config:**
    Run `/setup-config` in your AI agent. This walks you through creating `config.json` — your personal preferences for topic focus, difficulty ranges, style, part counts, and timing. The file is gitignored; it stays local to your machine.
 
-4. **Generate your first problem:**
+5. **Generate your first problem:**
    Run `/generate-problem`. The skill will propose a concept, ask for your approval, then generate the full problem with test suites.
 
 ## Skills Reference

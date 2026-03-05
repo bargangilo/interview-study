@@ -9,6 +9,7 @@ export default function MainMenu({ dispatch }) {
     { label: "Problem List", value: "list" },
     { label: "Stats", value: "stats" },
     { label: "Clear a Problem", value: "clear" },
+    { label: "Export Skills", value: "export_skills" },
     { label: "Exit", value: "exit" },
   ];
 
@@ -31,6 +32,9 @@ export default function MainMenu({ dispatch }) {
               break;
             case "clear":
               dispatch({ type: Action.GO_CLEAR });
+              break;
+            case "export_skills":
+              dispatch({ type: Action.GO_EXPORT_SKILLS });
               break;
             case "exit":
               process.exit(0);

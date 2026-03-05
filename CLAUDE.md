@@ -41,7 +41,7 @@ The CLI (`runner/`) is a Node.js ESM app using React and Ink for terminal UI. It
 
 - `runner/index.js` — Minimal entry point. Renders `<App />` via Ink's `render()` and waits for exit.
 - `runner/app.jsx` — Root React component. Uses `useReducer` with the state machine from `state.js`. Switches on `state.screen` to render the appropriate screen component. Loads problem data and passes it as props.
-- `runner/state.js` — Application state machine. Exports `Screen` constants (12 screens), `Action` constants, `initialState`, and a pure `reducer(state, action)` function. No side effects.
+- `runner/state.js` — Application state machine. Exports `Screen` constants (13 screens), `Action` constants, `initialState`, and a pure `reducer(state, action)` function. No side effects.
 - `runner/format.js` — Pure string-returning formatters. Status badges, timer segment, milestone warnings, global/problem stats formatting. No I/O.
 - `runner/watcher.js` — File watcher (`chokidar`). Spawns `yarn jest` or `pytest` on save, parses pass/fail counts, manages multi-part state and part advancement. Uses a `callbacks` parameter for UI updates — no direct console output.
 - `runner/config.js` — Problem config loading and validation. Workspace path management, scaffold writes, test filter building, resume state inference from file delimiters, workspace status detection, completion markers.
@@ -52,7 +52,7 @@ The CLI (`runner/`) is a Node.js ESM app using React and Ink for terminal UI. It
 
 Screen components live in `runner/components/`. Each maps to a `Screen` constant and receives `dispatch` plus relevant state slices as props:
 
-- `MainMenu.jsx`, `ProblemSelect.jsx`, `LanguageSelect.jsx`, `CountdownPrompt.jsx`, `ResumeOrRestart.jsx`, `SessionActive.jsx`, `ProblemList.jsx`, `ProblemListDetail.jsx`, `StatsOverview.jsx`, `StatsDetail.jsx`, `ClearProblemSelect.jsx`, `ClearConfirm.jsx`
+- `MainMenu.jsx`, `ProblemSelect.jsx`, `LanguageSelect.jsx`, `CountdownPrompt.jsx`, `ResumeOrRestart.jsx`, `SessionActive.jsx`, `ProblemList.jsx`, `ProblemListDetail.jsx`, `StatsOverview.jsx`, `StatsDetail.jsx`, `ClearProblemSelect.jsx`, `ClearConfirm.jsx`, `ExportSkills.jsx`
 - `SummaryLine.jsx` — Test results + timer display line
 - `Header.jsx` — Reusable title + separator
 
@@ -178,7 +178,9 @@ The three documents in `.agents/context/` are the knowledge foundation for all a
 
 The randomization scripts in `.agents/scripts/` have unit tests in `tests/scripts/` — run `yarn test` to verify them. If `config.json` schema changes, update both scripts and their tests.
 
-The four skill files are in `.agents/skills/` — they are instruction documents for AI agents, not code. When writing or updating skill files: every step must be explicit and complete, agents should never need to infer the next action. Skill files reference context documents by exact path — if context documents are moved or renamed, all skill files that reference them must be updated atomically. The self-check checklist in `.agents/context/problem-authoring-guide.md` is the quality gate for problem generation — it must be kept current as authoring rules evolve. When adding new skills: follow the existing skill file format, add the skill to `docs/agent-skills.md` with invocation instructions for all supported agents, and update the README Agent Skills section.
+The four skill files are in `.claude/skills/<name>/SKILL.md` — they are instruction documents for AI agents with YAML frontmatter (`name`, `description`) required by Claude Code's native skill system. The markdown body contains the complete step-by-step instructions. When writing or updating skill files: every step must be explicit and complete, agents should never need to infer the next action. Skill files reference context documents by exact path — if context documents are moved or renamed, all skill files that reference them must be updated atomically. The self-check checklist in `.agents/context/problem-authoring-guide.md` is the quality gate for problem generation — it must be kept current as authoring rules evolve. When adding new skills: follow the existing skill file format (add YAML frontmatter `name` and `description`, place body content after the closing `---`), add the skill to `docs/agent-skills.md` with invocation instructions for all supported agents, and update the README Agent Skills section.
+
+The init script `.agents/scripts/init-skills.js` exports skills for non-Claude-Code agents by stripping YAML frontmatter from `.claude/skills/*/SKILL.md` and writing the bodies to `.agents/skills/<name>.md`. The `.agents/skills/` directory is gitignored (generated output). The CLI's "Export Skills" menu option runs this script.
 
 ## Things to Never Do
 

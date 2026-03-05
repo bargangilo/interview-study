@@ -25,6 +25,7 @@ import StatsOverview from "./components/StatsOverview.jsx";
 import StatsDetail from "./components/StatsDetail.jsx";
 import ClearProblemSelect from "./components/ClearProblemSelect.jsx";
 import ClearConfirm from "./components/ClearConfirm.jsx";
+import ExportSkills from "./components/ExportSkills.jsx";
 
 function detectProblems(rootDir) {
   const problemsDir = path.join(rootDir, "problems");
@@ -202,6 +203,9 @@ export default function App({ rootDir }) {
           rootDir={rootDir}
         />
       );
+
+    case Screen.EXPORT_SKILLS:
+      return <ExportSkills dispatch={enrichedDispatch} rootDir={rootDir} />;
 
     default:
       return <MainMenu dispatch={enrichedDispatch} />;

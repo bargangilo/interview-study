@@ -1,3 +1,7 @@
+---
+name: setup-config
+description: Creates or updates config.json through a guided conversation covering topics, difficulty, style, and timing.
+---
 
 # Setup Config
 

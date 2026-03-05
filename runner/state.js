@@ -16,6 +16,7 @@ export const Screen = {
   STATS_DETAIL: "STATS_DETAIL",
   CLEAR_PROBLEM_SELECT: "CLEAR_PROBLEM_SELECT",
   CLEAR_CONFIRM: "CLEAR_CONFIRM",
+  EXPORT_SKILLS: "EXPORT_SKILLS",
 };
 
 export const Action = {
@@ -24,6 +25,7 @@ export const Action = {
   GO_LIST: "GO_LIST",
   GO_STATS: "GO_STATS",
   GO_CLEAR: "GO_CLEAR",
+  GO_EXPORT_SKILLS: "GO_EXPORT_SKILLS",
 
   // Problem flow
   SELECT_PROBLEM: "SELECT_PROBLEM",
@@ -76,6 +78,8 @@ export function reducer(state, action) {
       return { ...state, screen: Screen.STATS_OVERVIEW };
     case Action.GO_CLEAR:
       return { ...state, screen: Screen.CLEAR_PROBLEM_SELECT };
+    case Action.GO_EXPORT_SKILLS:
+      return { ...state, screen: Screen.EXPORT_SKILLS };
 
     // --- Start problem flow ---
     case Action.SELECT_PROBLEM:
@@ -160,6 +164,7 @@ export function reducer(state, action) {
         [Screen.STATS_DETAIL]: Screen.STATS_OVERVIEW,
         [Screen.CLEAR_PROBLEM_SELECT]: Screen.MAIN_MENU,
         [Screen.CLEAR_CONFIRM]: Screen.CLEAR_PROBLEM_SELECT,
+        [Screen.EXPORT_SKILLS]: Screen.MAIN_MENU,
       };
       const target = backMap[state.screen] || Screen.MAIN_MENU;
       return { ...state, screen: target };

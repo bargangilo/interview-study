@@ -35,6 +35,11 @@ describe("reducer", () => {
     expect(state.screen).toBe(Screen.CLEAR_PROBLEM_SELECT);
   });
 
+  test("GO_EXPORT_SKILLS transitions to EXPORT_SKILLS", () => {
+    const state = reducer(initialState, { type: Action.GO_EXPORT_SKILLS });
+    expect(state.screen).toBe(Screen.EXPORT_SKILLS);
+  });
+
   // --- Problem flow ---
 
   test("SELECT_PROBLEM stores problem data and goes to LANGUAGE_SELECT", () => {
@@ -191,6 +196,12 @@ describe("reducer", () => {
     const prev = { ...initialState, screen: Screen.CLEAR_CONFIRM };
     const state = reducer(prev, { type: Action.BACK });
     expect(state.screen).toBe(Screen.CLEAR_PROBLEM_SELECT);
+  });
+
+  test("BACK from EXPORT_SKILLS goes to MAIN_MENU", () => {
+    const prev = { ...initialState, screen: Screen.EXPORT_SKILLS };
+    const state = reducer(prev, { type: Action.BACK });
+    expect(state.screen).toBe(Screen.MAIN_MENU);
   });
 
   test("BACK from MAIN_MENU stays on MAIN_MENU", () => {

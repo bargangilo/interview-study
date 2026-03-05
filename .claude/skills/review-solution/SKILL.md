@@ -1,3 +1,7 @@
+---
+name: review-solution
+description: Reviews a completed solution with five-tier structured analysis covering correctness, complexity, code quality, and interview readiness.
+---
 
 # Review Solution
 
