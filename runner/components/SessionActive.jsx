@@ -304,6 +304,7 @@ export default function SessionActive({
       watcherRef.current = null;
     }
 
+    process.stdout.write("\x1b[2J\x1b[H");
     dispatch({ type: Action.SESSION_END });
   }
 
