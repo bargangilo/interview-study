@@ -20,6 +20,7 @@ export default function MainMenu({ dispatch }) {
       <Text color="gray">{"  "}{"─".repeat(15)}</Text>
       <Select
         options={options}
+        visibleOptionCount={options.length}
         onChange={(value) => {
           switch (value) {
             case "start":
