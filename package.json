@@ -1,22 +1,55 @@
 {
   "name": "interview-study",
   "version": "1.0.0",
+  "type": "module",
   "private": true,
   "description": "Interview coding study environment with hot-reload test watching",
   "scripts": {
-    "start": "node runner/index.js",
+    "start": "tsx runner/index.js",
     "test": "jest"
   },
   "jest": {
-    "testPathIgnorePatterns": ["/node_modules/", "/problems/"]
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/problems/"
+    ],
+    "transform": {
+      "\\.[jt]sx?$": "babel-jest"
+    }
+  },
+  "babel": {
+    "presets": [
+      [
+        "@babel/preset-env",
+        {
+          "targets": {
+            "node": "current"
+          }
+        }
+      ],
+      [
+        "@babel/preset-react",
+        {
+          "runtime": "automatic"
+        }
+      ]
+    ]
   },
   "dependencies": {
-    "@inquirer/prompts": "^7.0.0",
+    "@inkjs/ui": "^2.0.0",
     "chalk": "^4.1.2",
-    "chokidar": "^4.0.0"
+    "chokidar": "^4.0.0",
+    "ink": "^6.0.0",
+    "react": "^19.0.0"
   },
   "devDependencies": {
-    "jest": "^29.7.0"
+    "@babel/core": "^7.0.0",
+    "@babel/preset-env": "^7.0.0",
+    "@babel/preset-react": "^7.0.0",
+    "babel-jest": "^29.7.0",
+    "ink-testing-library": "^4.0.0",
+    "jest": "^29.7.0",
+    "tsx": "^4.0.0"
   },
   "packageManager": "yarn@4.13.0"
 }

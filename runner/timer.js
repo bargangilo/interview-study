@@ -14,7 +14,7 @@
  * @param {number} options.totalPausedSeconds - restored paused time (for resume)
  * @returns {Object} timer controller
  */
-function createTimer(options = {}) {
+export function createTimer(options = {}) {
   const mode = options.mode || "stopwatch";
   const countdownSeconds = options.countdownSeconds || null;
 
@@ -212,5 +212,3 @@ function createTimer(options = {}) {
     isPaused: isPausedFn,
   };
 }
-
-module.exports = { createTimer };

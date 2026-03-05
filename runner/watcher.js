@@ -1,24 +1,14 @@
-const path = require("path");
-const { spawn } = require("child_process");
-const chokidar = require("chokidar");
-const {
-  showSummary,
-  showWatching,
-  showRunning,
-  showPartComplete,
-  showAllComplete,
-  getMilestoneWarning,
-  showOvertimeNotice,
-} = require("./ui");
-const {
+import path from "path";
+import { spawn } from "child_process";
+import chokidar from "chokidar";
+import { getMilestoneWarning } from "./format.js";
+import {
   appendPartScaffold,
   buildTestFilter,
   writeCompletionMarker,
-} = require("./config");
+} from "./config.js";
 
 function parseJestOutput(stdout) {
-  // Extract the Tests summary line, then parse passed/failed independently.
-  // This handles all Jest formats including skipped tests from --testNamePattern.
   const testsLine = stdout.match(/Tests:.*$/m);
   if (!testsLine) return null;
 
@@ -35,7 +25,6 @@ function parseJestOutput(stdout) {
 }
 
 function parsePytestOutput(stdout) {
-  // pytest summary: "X passed" or "X failed, Y passed" or "X failed"
   const passMatch = stdout.match(/(\d+) passed/);
   const failMatch = stdout.match(/(\d+) failed/);
   const passed = passMatch ? parseInt(passMatch[1], 10) : 0;
@@ -94,7 +83,25 @@ function runTests(problem, language, rootDir, testFilter) {
   });
 }
 
-function startWatching(problem, language, rootDir, config, startPart, timerController) {
+/**
+ * Starts watching a solution file and running tests on save.
+ *
+ * @param {string} problem
+ * @param {string} language
+ * @param {string} rootDir
+ * @param {object|null} config - Problem config with parts array, or null for single-part
+ * @param {number} startPart - 0-indexed part to start from
+ * @param {object|null} timerController
+ * @param {object} callbacks - UI callbacks (all optional):
+ *   onTestStart()
+ *   onTestResult({ passed, total, timestamp, partInfo })
+ *   onPartAdvanced({ completedPart, nextTitle, nextDescription, splitSeconds })
+ *   onAllComplete({ problem })
+ *   onMilestone({ warning })
+ *   onOvertime()
+ *   onTimerTick({ timerDisplay, passed, total, timestamp, partInfo })
+ */
+export function startWatching(problem, language, rootDir, config, startPart, timerController, callbacks = {}) {
   const ext = language === "JavaScript" ? "js" : "py";
   const filePath = path.join(rootDir, "workspace", problem, `main.${ext}`);
 
@@ -108,22 +115,34 @@ function startWatching(problem, language, rootDir, config, startPart, timerContr
   const firedMilestones = new Set();
   let overtimeNotified = false;
 
+  function checkMilestones(state) {
+    if (state.isPaused) return;
+    const warning = getMilestoneWarning(state.totalElapsedSeconds, state.mode, state.countdownSeconds);
+    if (warning && !firedMilestones.has(warning)) {
+      firedMilestones.add(warning);
+      if (callbacks.onMilestone) callbacks.onMilestone({ warning });
+    }
+    if (state.isOvertime && !overtimeNotified) {
+      overtimeNotified = true;
+      if (callbacks.onOvertime) callbacks.onOvertime();
+    }
+  }
+
   // --- Legacy path (no config / single-part) ---
   if (!config) {
-    showWatching(problem, language);
-
     let running = false;
 
     const run = async () => {
       if (running) return;
       running = true;
-      showRunning();
+      if (callbacks.onTestStart) callbacks.onTestStart();
       const { passed, total } = await runTests(problem, language, rootDir, null);
       lastPassed = passed;
       lastTotal = total;
       lastTimestamp = Date.now();
-      const timerDisplay = timerController ? timerController.getDisplayState() : null;
-      showSummary(passed, total, lastTimestamp, null, timerDisplay);
+      if (callbacks.onTestResult) {
+        callbacks.onTestResult({ passed, total, timestamp: lastTimestamp, partInfo: null });
+      }
       running = false;
     };
 
@@ -132,7 +151,15 @@ function startWatching(problem, language, rootDir, config, startPart, timerContr
       timerController.onTick((state) => {
         if (running) return;
         checkMilestones(state);
-        showSummary(lastPassed, lastTotal, lastTimestamp, null, state);
+        if (callbacks.onTimerTick) {
+          callbacks.onTimerTick({
+            timerDisplay: state,
+            passed: lastPassed,
+            total: lastTotal,
+            timestamp: lastTimestamp,
+            partInfo: null,
+          });
+        }
       });
     }
 
@@ -156,8 +183,6 @@ function startWatching(problem, language, rootDir, config, startPart, timerContr
   }
 
   // --- Multi-part path ---
-  showWatching(problem, language);
-
   let currentPart = startPart || 0;
   let running = false;
   let ignoreNextChange = false;
@@ -166,19 +191,6 @@ function startWatching(problem, language, rootDir, config, startPart, timerContr
     _resolveCompletion = resolve;
   });
 
-  function checkMilestones(state) {
-    if (state.isPaused) return;
-    const warning = getMilestoneWarning(state.totalElapsedSeconds, state.mode, state.countdownSeconds);
-    if (warning && !firedMilestones.has(warning)) {
-      firedMilestones.add(warning);
-      console.log("\n" + warning);
-    }
-    if (state.isOvertime && !overtimeNotified) {
-      overtimeNotified = true;
-      showOvertimeNotice();
-    }
-  }
-
   const run = async () => {
     if (running) return;
     running = true;
@@ -186,7 +198,7 @@ function startWatching(problem, language, rootDir, config, startPart, timerContr
     let advancing = true;
     while (advancing) {
       advancing = false;
-      showRunning();
+      if (callbacks.onTestStart) callbacks.onTestStart();
 
       const testFilter = buildTestFilter(
         config.parts[currentPart].activeTests,
@@ -205,8 +217,9 @@ function startWatching(problem, language, rootDir, config, startPart, timerContr
         current: currentPart + 1,
         unlocked: currentPart + 1,
       };
-      const timerDisplay = timerController ? timerController.getDisplayState() : null;
-      showSummary(passed, total, lastTimestamp, lastPartInfo, timerDisplay);
+      if (callbacks.onTestResult) {
+        callbacks.onTestResult({ passed, total, timestamp: lastTimestamp, partInfo: lastPartInfo });
+      }
 
       if (passed === total && total > 0) {
         const nextPart = currentPart + 1;
@@ -215,7 +228,7 @@ function startWatching(problem, language, rootDir, config, startPart, timerContr
           ignoreNextChange = true;
           writeCompletionMarker(problem, language, rootDir);
           if (timerController) timerController.stop();
-          showAllComplete(problem);
+          if (callbacks.onAllComplete) callbacks.onAllComplete({ problem });
           _resolveCompletion();
         } else {
           // Advance to next part
@@ -223,12 +236,14 @@ function startWatching(problem, language, rootDir, config, startPart, timerContr
           appendPartScaffold(problem, language, config, nextPart, rootDir);
           const splitSeconds = timerController ? timerController.splitPart() : null;
           currentPart = nextPart;
-          showPartComplete(
-            currentPart, // display as 1-indexed (currentPart was just incremented)
-            config.parts[currentPart].title,
-            config.parts[currentPart].description,
-            splitSeconds
-          );
+          if (callbacks.onPartAdvanced) {
+            callbacks.onPartAdvanced({
+              completedPart: currentPart, // 1-indexed (currentPart was just incremented)
+              nextTitle: config.parts[currentPart].title,
+              nextDescription: config.parts[currentPart].description,
+              splitSeconds,
+            });
+          }
           advancing = true; // re-run with new filter
         }
       }
@@ -242,7 +257,15 @@ function startWatching(problem, language, rootDir, config, startPart, timerContr
     timerController.onTick((state) => {
       if (running) return;
       checkMilestones(state);
-      showSummary(lastPassed, lastTotal, lastTimestamp, lastPartInfo, state);
+      if (callbacks.onTimerTick) {
+        callbacks.onTimerTick({
+          timerDisplay: state,
+          passed: lastPassed,
+          total: lastTotal,
+          timestamp: lastTimestamp,
+          partInfo: lastPartInfo,
+        });
+      }
     });
   }
 
@@ -271,5 +294,3 @@ function startWatching(problem, language, rootDir, config, startPart, timerContr
     timerController,
   };
 }
-
-module.exports = { startWatching };

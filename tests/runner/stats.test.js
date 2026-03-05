@@ -1,9 +1,9 @@
-const path = require("path");
-const fs = require("fs");
+import path from "path";
+import fs from "fs";
 
 jest.mock("fs");
 
-const {
+import {
   loadSession,
   readAllSessions,
   computeGlobalStats,
@@ -13,11 +13,11 @@ const {
   writeSession,
   writeSessionSync,
   _resetWriteState,
-} = require("../../runner/stats");
+} from "../../runner/stats.js";
 
-const completedSession = require("./fixtures/one-attempt-completed.json");
-const mixedSession = require("./fixtures/multiple-attempts-mixed.json");
-const emptySession = require("./fixtures/empty-attempts.json");
+import completedSession from "./fixtures/one-attempt-completed.json";
+import mixedSession from "./fixtures/multiple-attempts-mixed.json";
+import emptySession from "./fixtures/empty-attempts.json";
 
 afterEach(() => {
   jest.restoreAllMocks();
@@ -189,7 +189,6 @@ describe("computeProblemStats", () => {
 
   test("includes best splits from fastest completed attempt", () => {
     const stats = computeProblemStats("test-problem", mixedSession);
-    // Best (1200s) has splits with part 1 = 600, part 2 = 600
     expect(stats.bestSplits).not.toBeNull();
     expect(stats.bestSplits).toHaveLength(2);
     expect(stats.bestSplits[0].elapsedSeconds).toBe(600);
@@ -257,7 +256,6 @@ describe("streak calculation", () => {
       ],
     };
     const stats = computeGlobalStats([{ problemName: "test", session }]);
-    // Only today counts — 3 days ago is not consecutive
     expect(stats.currentStreakDays).toBe(1);
   });
 });
@@ -284,9 +282,7 @@ describe("writeSession", () => {
       ),
     };
     const data = { completed: true };
-    // First write starts
     const p1 = writeSession("test-problem", data, "/fake");
-    // Second write should be skipped
     const p2 = writeSession("test-problem", data, "/fake");
     expect(fs.promises.writeFile).toHaveBeenCalledTimes(1);
     resolveWrite();

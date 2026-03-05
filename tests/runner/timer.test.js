@@ -1,4 +1,4 @@
-const { createTimer } = require("../../runner/timer");
+import { createTimer } from "../../runner/timer.js";
 
 beforeEach(() => jest.useFakeTimers());
 afterEach(() => jest.useRealTimers());
@@ -184,19 +184,15 @@ describe("milestone tracking", () => {
     });
     timer.start();
 
-    // Advance to just before 15 min
     jest.advanceTimersByTime(14 * 60 * 1000);
     expect(milestones).toEqual([]);
 
-    // Cross 15 min
     jest.advanceTimersByTime(60 * 1000);
     expect(milestones).toContain(15 * 60);
 
-    // Advance to 30 min
     jest.advanceTimersByTime(15 * 60 * 1000);
     expect(milestones).toContain(30 * 60);
 
-    // Advance to 45 min
     jest.advanceTimersByTime(15 * 60 * 1000);
     expect(milestones).toContain(45 * 60);
 
@@ -211,7 +207,6 @@ describe("milestone tracking", () => {
     });
     timer.start();
 
-    // Advance well past 15 min
     jest.advanceTimersByTime(20 * 60 * 1000);
 
     const fifteenMinMilestones = milestones.filter((m) => m === 15 * 60);
@@ -226,15 +221,12 @@ describe("milestone tracking", () => {
     });
     timer.start();
 
-    // 50% elapsed = 50s
     jest.advanceTimersByTime(50 * 1000);
     expect(milestones).toContain(50);
 
-    // 75% elapsed = 75s
     jest.advanceTimersByTime(25 * 1000);
     expect(milestones).toContain(75);
 
-    // 100% elapsed = 100s (overtime milestone)
     jest.advanceTimersByTime(25 * 1000);
     expect(milestones).toContain(100);
   });
@@ -263,7 +255,6 @@ describe("serialization", () => {
     });
     timer.start();
     jest.advanceTimersByTime(5000);
-    // Should be 120 + 5 = 125 total
     expect(timer.getDisplayState().totalElapsedSeconds).toBe(125);
   });
 });
@@ -278,7 +269,6 @@ describe("stop", () => {
     timer.stop();
     const tickCount = ticks.length;
     jest.advanceTimersByTime(5000);
-    // No more ticks after stop
     expect(ticks.length).toBe(tickCount);
     expect(timer.getDisplayState().totalElapsedSeconds).toBe(3);
   });

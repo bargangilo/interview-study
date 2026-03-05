@@ -1,18 +1,18 @@
-const path = require("path");
-const fs = require("fs");
+import path from "path";
+import fs from "fs";
 
 jest.mock("fs");
 jest.mock("child_process");
 jest.mock("chokidar");
 
-const {
+import {
   buildTestFilter,
   inferCurrentPart,
   appendPartScaffold,
   writeCompletionMarker,
-} = require("../../runner/config");
+} from "../../runner/config.js";
 
-const sampleConfig = require("./fixtures/sample-problem.json");
+import sampleConfig from "./fixtures/sample-problem.json";
 
 // --- Part state inference ---
 
@@ -20,23 +20,9 @@ describe("inferCurrentPart", () => {
   afterEach(() => jest.restoreAllMocks());
 
   test("returns 0 when file has no delimiter markers", () => {
-    const freshContent = fs.readFileSync(
-      path.resolve(__dirname, "fixtures/working-file-fresh.js"),
-      { encoding: "utf8", flag: "r" }
-    );
-    // Mock fs for inferCurrentPart
+    const freshContent = "function partOne(x) {\n  // TODO\n}\n\nmodule.exports = { partOne };\n";
     fs.existsSync.mockReturnValue(true);
     fs.readFileSync.mockReturnValue(freshContent);
-
-    // Re-read to get actual content for assertion setup
-    jest.restoreAllMocks();
-    const actualContent = require("fs").readFileSync(
-      path.resolve(__dirname, "fixtures/working-file-fresh.js"),
-      "utf8"
-    );
-    // Re-mock
-    jest.spyOn(fs, "existsSync").mockReturnValue(true);
-    jest.spyOn(fs, "readFileSync").mockReturnValue(actualContent);
 
     const result = inferCurrentPart("test-problem", "JavaScript", "/fake");
     expect(result).toBe(0);
@@ -139,7 +125,6 @@ describe("buildTestFilter", () => {
 
 describe("part progression logic", () => {
   test("progression triggers when passed === total and total > 0", () => {
-    // This tests the condition used in watcher.js startWatching
     const shouldAdvance = (passed, total) => passed === total && total > 0;
 
     expect(shouldAdvance(5, 5)).toBe(true);
@@ -220,8 +205,8 @@ describe("cumulative test accumulation", () => {
     const part1Tests = sampleConfig.parts[0].activeTests;
     const part2Tests = sampleConfig.parts[1].activeTests;
 
-    for (const test of part1Tests) {
-      expect(part2Tests).toContain(test);
+    for (const t of part1Tests) {
+      expect(part2Tests).toContain(t);
     }
   });
 
@@ -235,11 +220,10 @@ describe("cumulative test accumulation", () => {
   });
 
   test("a test omitted from Part 2 activeTests is not included", () => {
-    // If Part 1 had a test not in Part 2, it should not appear
     const hypotheticalConfig = {
       parts: [
         { activeTests: ["test a", "test b", "test c"] },
-        { activeTests: ["test a", "test c", "test d"] }, // "test b" omitted
+        { activeTests: ["test a", "test c", "test d"] },
       ],
     };
 
@@ -293,8 +277,3 @@ describe("writeCompletionMarker", () => {
     expect(writtenPath).not.toMatch(/\/problems\//);
   });
 });
-
-// NOTE: parseJestOutput and parsePytestOutput are not exported from watcher.js,
-// so they cannot be unit tested directly without refactoring. The watcher's
-// startWatching function is also tightly coupled to chokidar and child_process,
-// making it difficult to test in isolation.

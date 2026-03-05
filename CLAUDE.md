@@ -35,14 +35,28 @@ pytest problems/<name>/test_sample.py -v                     # Python single-par
 
 ## Architecture
 
-The CLI (`runner/`) is a Node.js app with six CommonJS modules:
+The CLI (`runner/`) is a Node.js ESM app using React and Ink for terminal UI. It uses `tsx` as the runtime for JSX support.
 
-- `runner/index.js` — Entry point. Main menu, problem picker, language/countdown prompts, workspace init, resume/restart flow, VS Code launch, P key pause/resume, SIGINT handling, session lifecycle, Stats menu.
-- `runner/watcher.js` — File watcher (`chokidar`). Spawns `yarn jest` or `pytest` on save, parses pass/fail counts, manages multi-part state and part advancement, integrates timer for live display.
-- `runner/ui.js` — Terminal output. Summary line with timer display, part introductions, milestone warnings, status badges, stats formatting.
+### Core Modules
+
+- `runner/index.js` — Minimal entry point. Renders `<App />` via Ink's `render()` and waits for exit.
+- `runner/app.jsx` — Root React component. Uses `useReducer` with the state machine from `state.js`. Switches on `state.screen` to render the appropriate screen component. Loads problem data and passes it as props.
+- `runner/state.js` — Application state machine. Exports `Screen` constants (12 screens), `Action` constants, `initialState`, and a pure `reducer(state, action)` function. No side effects.
+- `runner/format.js` — Pure string-returning formatters. Status badges, timer segment, milestone warnings, global/problem stats formatting. No I/O.
+- `runner/watcher.js` — File watcher (`chokidar`). Spawns `yarn jest` or `pytest` on save, parses pass/fail counts, manages multi-part state and part advancement. Uses a `callbacks` parameter for UI updates — no direct console output.
 - `runner/config.js` — Problem config loading and validation. Workspace path management, scaffold writes, test filter building, resume state inference from file delimiters, workspace status detection, completion markers.
 - `runner/timer.js` — Timer state machine. Stopwatch and countdown modes, pause/resume, wall-clock-based elapsed math (never increments a counter), milestone tracking, serialization for session persistence.
 - `runner/stats.js` — Session I/O (`session.json`). Global and per-problem stats computation, streak calculation, time formatting utilities.
+
+### Components
+
+Screen components live in `runner/components/`. Each maps to a `Screen` constant and receives `dispatch` plus relevant state slices as props:
+
+- `MainMenu.jsx`, `ProblemSelect.jsx`, `LanguageSelect.jsx`, `CountdownPrompt.jsx`, `ResumeOrRestart.jsx`, `SessionActive.jsx`, `ProblemList.jsx`, `ProblemListDetail.jsx`, `StatsOverview.jsx`, `StatsDetail.jsx`, `ClearProblemSelect.jsx`, `ClearConfirm.jsx`
+- `SummaryLine.jsx` — Test results + timer display line
+- `Header.jsx` — Reusable title + separator
+
+Interactive components use `Select` and `TextInput` from `@inkjs/ui`. Key handlers use Ink's `useInput`. Append-only messages (part completions, milestones) use Ink's `<Static>`.
 
 ### Key Paths
 
@@ -98,13 +112,14 @@ Runner unit tests live in `tests/runner/` and cover config loading, workspace ma
 |---|---|
 | `index.test.js` | Config loading, workspace management, menu structure |
 | `watcher.test.js` | Test filter building, part progression, scaffold appending |
-| `ui.test.js` | Output formatting, timer display, stats formatting |
+| `format.test.js` | Pure formatters: status badges, timer segment, milestone warnings, stats formatting |
+| `state.test.js` | State machine: screen transitions, back navigation, action handling |
 | `timer.test.js` | Timer math, pause/resume, milestones, serialization |
 | `stats.test.js` | Stats computation, session I/O, streak, time formatting |
 
 ### Patterns
 
-All test files mock `fs`, `child_process`, and `chokidar` — no real filesystem or process calls. Timer tests use `jest.useFakeTimers()` to control `setInterval` and mock `Date.now()`. UI tests use a `stripAnsi` helper. Fixture files live in `tests/runner/fixtures/`.
+All test files mock `fs`, `child_process`, and `chokidar` — no real filesystem or process calls. Timer tests use `jest.useFakeTimers()` to control `setInterval` and mock `Date.now()`. Format tests use a `stripAnsi` helper. Fixture files live in `tests/runner/fixtures/`. Jest uses `babel-jest` with `@babel/preset-env` and `@babel/preset-react` to transform ESM and JSX.
 
 ### Expectations
 
@@ -128,7 +143,8 @@ See [docs/problem-schema.md](docs/problem-schema.md) for the full schema referen
 
 ## Conventions
 
-- All JS uses CommonJS (`module.exports` / `require`)
+- All JS uses ESM (`import` / `export`). The `"type": "module"` field is set in `package.json`.
+- JSX files use the `.jsx` extension and are transpiled by `tsx` at runtime and `babel-jest` in tests.
 - Python test files add the workspace problem directory to `sys.path` for imports
 - The `problems/` directory is never modified at runtime — all writes go to `workspace/`
 - The `workspace/` folder is committed (via `.gitkeep`) but contents are gitignored

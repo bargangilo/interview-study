@@ -1,9 +1,9 @@
-const path = require("path");
-const fs = require("fs");
+import path from "path";
+import fs from "fs";
 
 jest.mock("fs");
 
-const {
+import {
   loadProblemConfig,
   ensureWorkspace,
   workspacePath,
@@ -14,9 +14,9 @@ const {
   clearWorkspaceDir,
   writeCompletionMarker,
   getWorkspaceStatus,
-} = require("../../runner/config");
+} from "../../runner/config.js";
 
-const sampleConfig = require("./fixtures/sample-problem.json");
+import sampleConfig from "./fixtures/sample-problem.json";
 
 afterEach(() => jest.restoreAllMocks());
 
@@ -156,15 +156,11 @@ describe("hasWorkspaceFile (existing file detection)", () => {
 });
 
 // --- Resume default ---
-// NOTE: The resume/restart prompt is in index.js main() which calls @inquirer/prompts select().
-// The choices array has "Resume where you left off" as the first option, which makes it the
-// default in @inquirer/prompts select(). This is verified by reading the source, but testing
-// the prompt order requires integration testing of the main() function, which is tightly
-// coupled to stdin/stdout and not exported.
+// NOTE: The resume/restart prompt is rendered by the ResumeOrRestart component.
+// Resume is the first option in the Select, making it the default.
 
 describe("resume prompt default (structural verification)", () => {
   test("resume choice is listed before restart in the choices array", () => {
-    // Mirror the exact choices structure from index.js
     const choices = [
       { name: "Resume where you left off", value: "resume" },
       { name: "Restart from scratch", value: "restart" },
@@ -182,7 +178,6 @@ describe("restart behavior", () => {
     fs.mkdirSync.mockImplementation(() => {});
     fs.writeFileSync.mockImplementation(() => {});
 
-    // Simulate restart: write initial scaffold
     writeInitialScaffold("test-problem", "JavaScript", sampleConfig, "/fake");
 
     const writtenContent = fs.writeFileSync.mock.calls[0][1];
@@ -243,7 +238,6 @@ describe("workspacePath (language file resolution)", () => {
 
 describe("cross-language workspace behavior", () => {
   test("JS file creation does not affect existing Python file", () => {
-    // hasWorkspaceFile for JS returns false (no JS file yet)
     fs.existsSync.mockImplementation((p) => {
       if (p.endsWith("main.js")) return false;
       if (p.endsWith("main.py")) return true;
@@ -251,9 +245,7 @@ describe("cross-language workspace behavior", () => {
     });
     fs.readFileSync.mockReturnValue("def part_one():\n    return 42\n");
 
-    // JS file does not exist
     expect(hasWorkspaceFile("test-problem", "JavaScript", "/fake")).toBe(false);
-    // Python file exists and is non-empty
     expect(hasWorkspaceFile("test-problem", "Python", "/fake")).toBe(true);
   });
 
@@ -287,13 +279,6 @@ describe("VS Code launch behavior", () => {
       path.join("/root/project", "workspace", "test-problem", "main.py")
     );
   });
-
-  // NOTE: The actual VS Code spawn logic (execFileSync("which", ["code"]),
-  // spawn("code", [...args]), and the catch block for the "not found" warning)
-  // lives in the main() function of index.js and is tightly coupled to
-  // child_process and process.stdout. Testing the non-blocking spawn with
-  // child.unref() and the graceful fallback requires integration testing of
-  // main(), which is not exported.
 
   test("graceful fallback warning string is correctly formatted", () => {
     const warningMessage =
@@ -527,7 +512,6 @@ describe("clear confirmation structure (structural verification)", () => {
 
 describe("truncate function behavior (structural verification)", () => {
   test("returns empty string for falsy input", () => {
-    // Mirrors truncate() from index.js
     const truncate = (str, max) => {
       if (!str) return "";
       if (str.length <= max) return str;

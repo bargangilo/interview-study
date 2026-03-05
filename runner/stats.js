@@ -3,22 +3,22 @@
  * Pure functions (except write helpers). No UI concerns.
  */
 
-const path = require("path");
-const fs = require("fs");
+import path from "path";
+import fs from "fs";
 
 let _writePending = false;
 
 /**
  * Returns the path to session.json for a problem.
  */
-function sessionPath(problemName, rootDir) {
+export function sessionPath(problemName, rootDir) {
   return path.join(rootDir, "workspace", problemName, "session.json");
 }
 
 /**
  * Reads a single session.json. Returns null if missing or malformed.
  */
-function loadSession(problemName, rootDir) {
+export function loadSession(problemName, rootDir) {
   const p = sessionPath(problemName, rootDir);
   if (!fs.existsSync(p)) return null;
   try {
@@ -32,7 +32,7 @@ function loadSession(problemName, rootDir) {
  * Reads all session.json files from workspace subdirectories.
  * Returns array of { problemName, session } objects.
  */
-function readAllSessions(rootDir) {
+export function readAllSessions(rootDir) {
   const workspaceDir = path.join(rootDir, "workspace");
   if (!fs.existsSync(workspaceDir)) return [];
 
@@ -51,7 +51,7 @@ function readAllSessions(rootDir) {
 /**
  * Computes aggregate stats across all sessions.
  */
-function computeGlobalStats(sessions) {
+export function computeGlobalStats(sessions) {
   let totalPracticeSeconds = 0;
   const problemsAttempted = sessions.length;
   let problemsCompleted = 0;
@@ -99,7 +99,7 @@ function computeGlobalStats(sessions) {
 /**
  * Computes per-problem stats from a session object.
  */
-function computeProblemStats(problemName, session) {
+export function computeProblemStats(problemName, session) {
   const attempts = session.attempts || [];
   const completions = attempts.filter((a) => a.completed).length;
   const completedAttempts = attempts.filter((a) => a.completed);
@@ -193,7 +193,7 @@ function computeStreak(sessions) {
 /**
  * Formats raw seconds as "MM:SS" (under an hour) or "H:MM:SS" (over).
  */
-function formatSeconds(seconds) {
+export function formatSeconds(seconds) {
   if (seconds == null) return "--:--";
   const s = Math.abs(Math.floor(seconds));
   const hrs = Math.floor(s / 3600);
@@ -209,7 +209,7 @@ function formatSeconds(seconds) {
 /**
  * Formats seconds as verbose "Xh Ym" for stats display.
  */
-function formatSecondsVerbose(seconds) {
+export function formatSecondsVerbose(seconds) {
   if (seconds == null) return "--";
   const s = Math.floor(seconds);
   const hrs = Math.floor(s / 3600);
@@ -223,7 +223,7 @@ function formatSecondsVerbose(seconds) {
  * Writes session data to workspace/<name>/session.json asynchronously.
  * Skips if a write is already pending to avoid queuing.
  */
-function writeSession(problemName, sessionData, rootDir) {
+export function writeSession(problemName, sessionData, rootDir) {
   if (_writePending) return Promise.resolve();
   _writePending = true;
   const p = sessionPath(problemName, rootDir);
@@ -237,7 +237,7 @@ function writeSession(problemName, sessionData, rootDir) {
 /**
  * Writes session data synchronously (for exit/SIGINT handlers).
  */
-function writeSessionSync(problemName, sessionData, rootDir) {
+export function writeSessionSync(problemName, sessionData, rootDir) {
   const p = sessionPath(problemName, rootDir);
   fs.writeFileSync(p, JSON.stringify(sessionData, null, 2), "utf8");
 }
@@ -245,19 +245,6 @@ function writeSessionSync(problemName, sessionData, rootDir) {
 /**
  * Resets the write-pending flag. For testing only.
  */
-function _resetWriteState() {
+export function _resetWriteState() {
   _writePending = false;
 }
-
-module.exports = {
-  sessionPath,
-  loadSession,
-  readAllSessions,
-  computeGlobalStats,
-  computeProblemStats,
-  formatSeconds,
-  formatSecondsVerbose,
-  writeSession,
-  writeSessionSync,
-  _resetWriteState,
-};

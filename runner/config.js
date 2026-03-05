@@ -1,5 +1,5 @@
-const path = require("path");
-const fs = require("fs");
+import path from "path";
+import fs from "fs";
 
 const COMPLETION_MARKER_JS = "\n// ---- COMPLETE ----\n";
 const COMPLETION_MARKER_PY = "\n# ---- COMPLETE ----\n";
@@ -9,7 +9,7 @@ const COMPLETION_MARKER_PY = "\n# ---- COMPLETE ----\n";
  * Returns null if no problem.json exists (legacy single-part problem).
  * Throws a descriptive error if problem.json exists but is malformed.
  */
-function loadProblemConfig(problemName, rootDir) {
+export function loadProblemConfig(problemName, rootDir) {
   const configPath = path.join(rootDir, "problems", problemName, "problem.json");
   if (!fs.existsSync(configPath)) {
     return null;
@@ -58,7 +58,7 @@ function loadProblemConfig(problemName, rootDir) {
  * Ensures the workspace/ directory exists with a .gitkeep file.
  * Recreates it gracefully if missing.
  */
-function ensureWorkspace(rootDir) {
+export function ensureWorkspace(rootDir) {
   const workspaceDir = path.join(rootDir, "workspace");
   fs.mkdirSync(workspaceDir, { recursive: true });
   const gitkeep = path.join(workspaceDir, ".gitkeep");
@@ -70,7 +70,7 @@ function ensureWorkspace(rootDir) {
 /**
  * Returns the path to the working file in workspace/.
  */
-function workspacePath(problemName, language, rootDir) {
+export function workspacePath(problemName, language, rootDir) {
   const ext = language === "JavaScript" ? "js" : "py";
   return path.join(rootDir, "workspace", problemName, `main.${ext}`);
 }
@@ -78,7 +78,7 @@ function workspacePath(problemName, language, rootDir) {
 /**
  * Checks if a non-empty workspace file exists for the given problem and language.
  */
-function hasWorkspaceFile(problemName, language, rootDir) {
+export function hasWorkspaceFile(problemName, language, rootDir) {
   const filePath = workspacePath(problemName, language, rootDir);
   if (!fs.existsSync(filePath)) return false;
   const content = fs.readFileSync(filePath, "utf8");
@@ -88,7 +88,7 @@ function hasWorkspaceFile(problemName, language, rootDir) {
 /**
  * Writes the initial scaffold (part 0) to the workspace file, overwriting it.
  */
-function writeInitialScaffold(problemName, language, config, rootDir) {
+export function writeInitialScaffold(problemName, language, config, rootDir) {
   const langKey = language === "JavaScript" ? "js" : "python";
   const filePath = workspacePath(problemName, language, rootDir);
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -99,7 +99,7 @@ function writeInitialScaffold(problemName, language, config, rootDir) {
 /**
  * Appends the scaffold for a subsequent part to the workspace file with a delimiter.
  */
-function appendPartScaffold(problemName, language, config, partIndex, rootDir) {
+export function appendPartScaffold(problemName, language, config, partIndex, rootDir) {
   const filePath = workspacePath(problemName, language, rootDir);
   const langKey = language === "JavaScript" ? "js" : "python";
   const partNum = partIndex + 1;
@@ -115,7 +115,7 @@ function appendPartScaffold(problemName, language, config, partIndex, rootDir) {
  * Infers the current part index by scanning the workspace file for part delimiter comments.
  * Returns 0 if no delimiters found (Part 1), otherwise the highest part index found.
  */
-function inferCurrentPart(problemName, language, rootDir) {
+export function inferCurrentPart(problemName, language, rootDir) {
   const filePath = workspacePath(problemName, language, rootDir);
   if (!fs.existsSync(filePath)) return 0;
   const content = fs.readFileSync(filePath, "utf8");
@@ -139,7 +139,7 @@ function inferCurrentPart(problemName, language, rootDir) {
  * JS: regex pattern for --testNamePattern
  * Python: keyword expression for -k
  */
-function buildTestFilter(activeTests, language) {
+export function buildTestFilter(activeTests, language) {
   if (language === "JavaScript") {
     const escaped = activeTests.map((t) =>
       t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
@@ -154,7 +154,7 @@ function buildTestFilter(activeTests, language) {
 /**
  * Checks if a workspace directory exists for the given problem.
  */
-function hasWorkspaceDir(problemName, rootDir) {
+export function hasWorkspaceDir(problemName, rootDir) {
   const dir = path.join(rootDir, "workspace", problemName);
   return fs.existsSync(dir);
 }
@@ -162,7 +162,7 @@ function hasWorkspaceDir(problemName, rootDir) {
 /**
  * Deletes the workspace directory for the given problem.
  */
-function clearWorkspaceDir(problemName, rootDir) {
+export function clearWorkspaceDir(problemName, rootDir) {
   const dir = path.join(rootDir, "workspace", problemName);
   if (fs.existsSync(dir)) {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -172,7 +172,7 @@ function clearWorkspaceDir(problemName, rootDir) {
 /**
  * Appends a completion marker to the workspace file.
  */
-function writeCompletionMarker(problemName, language, rootDir) {
+export function writeCompletionMarker(problemName, language, rootDir) {
   const filePath = workspacePath(problemName, language, rootDir);
   const marker =
     language === "JavaScript" ? COMPLETION_MARKER_JS : COMPLETION_MARKER_PY;
@@ -183,7 +183,7 @@ function writeCompletionMarker(problemName, language, rootDir) {
  * Returns workspace status for a problem: null, "in progress", "part N reached", or "complete".
  * Scans all workspace files (JS and Python) for the highest progress.
  */
-function getWorkspaceStatus(problemName, config, rootDir) {
+export function getWorkspaceStatus(problemName, config, rootDir) {
   if (!hasWorkspaceDir(problemName, rootDir)) return null;
 
   let maxPartNum = 0;
@@ -227,18 +227,3 @@ function getWorkspaceStatus(problemName, config, rootDir) {
 
   return null;
 }
-
-module.exports = {
-  loadProblemConfig,
-  ensureWorkspace,
-  workspacePath,
-  hasWorkspaceFile,
-  writeInitialScaffold,
-  appendPartScaffold,
-  buildTestFilter,
-  inferCurrentPart,
-  hasWorkspaceDir,
-  clearWorkspaceDir,
-  writeCompletionMarker,
-  getWorkspaceStatus,
-};

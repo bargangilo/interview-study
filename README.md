@@ -80,18 +80,36 @@ workspace/                         # Gitignored working area
     main.js                        # Active JS solution file
     main.py                        # Active Python solution file
     session.json                   # Timer state and attempt history
-runner/                            # CLI application source
-  index.js                         # Entry point, main menu, session lifecycle
+runner/                            # CLI application source (ESM, React/Ink)
+  index.js                         # Entry point — renders <App /> via Ink
+  app.jsx                          # Root component, useReducer state machine
+  state.js                         # Screen/Action constants, pure reducer
+  format.js                        # Pure string formatters (badges, timer, stats)
   watcher.js                       # File watcher, test runner, part progression
-  ui.js                            # Terminal output formatting
   config.js                        # Problem config loading, workspace management
   timer.js                         # Timer state machine
   stats.js                         # Session persistence, stats computation
+  components/                      # Ink screen components
+    MainMenu.jsx                   # Main menu with 5 options
+    ProblemSelect.jsx              # Problem picker with status badges
+    LanguageSelect.jsx             # Language picker (auto-selects if one)
+    CountdownPrompt.jsx            # Timer mode input
+    ResumeOrRestart.jsx            # Resume/restart prompt
+    SessionActive.jsx              # Active session — watcher, timer, VS Code
+    ProblemList.jsx                # Read-only problem browser
+    ProblemListDetail.jsx          # Problem detail view
+    StatsOverview.jsx              # Global stats + problem drill-down
+    StatsDetail.jsx                # Per-problem stats
+    ClearProblemSelect.jsx         # Problem picker for clearing
+    ClearConfirm.jsx               # Clear confirmation (defaults to No)
+    SummaryLine.jsx                # Test results + timer display
+    Header.jsx                     # Reusable title + separator
 tests/
   runner/                          # Unit tests for the CLI (run via yarn test)
     index.test.js                  # Config loading, workspace management tests
     watcher.test.js                # Test filter building, part progression tests
-    ui.test.js                     # Output formatting tests
+    format.test.js                 # Pure formatter tests
+    state.test.js                  # State machine transition tests
     timer.test.js                  # Timer math and state tests
     stats.test.js                  # Stats computation and session I/O tests
     fixtures/                      # Test fixture files
