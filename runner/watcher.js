@@ -7,6 +7,9 @@ import {
   buildTestFilter,
   loadRunnerConfig,
   writeCompletionMarker,
+  getUnlockedParts,
+  buildRunHarness,
+  writeRunHarness,
 } from "./config.js";
 
 function parseJestOutput(stdout) {
@@ -300,6 +303,13 @@ export function startWatching(problem, language, rootDir, config, startPart, tim
             // Advance to next part
             ignoreNextChange = true;
             appendPartScaffold(problem, language, config, nextPart, rootDir);
+
+            // Regenerate run harness with new part's inputs
+            const langKey = language === "JavaScript" ? "javascript" : "python";
+            const updatedParts = getUnlockedParts(config, filePath);
+            const updatedHarness = buildRunHarness(updatedParts, langKey);
+            writeRunHarness(path.dirname(filePath), langKey, updatedHarness);
+
             const splitSeconds = timerController ? timerController.splitPart() : null;
             currentPart = nextPart;
             if (callbacks.onPartAdvanced) {

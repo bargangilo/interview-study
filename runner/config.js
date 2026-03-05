@@ -232,6 +232,204 @@ export function loadRunnerConfig(rootDir) {
 }
 
 /**
+ * Returns the unlocked parts from a problem config based on workspace file state.
+ * Reads delimiter count from the workspace file to determine the current part index.
+ * Returns parts[0..currentPart] inclusive.
+ */
+export function getUnlockedParts(problemConfig, workspaceMainPath) {
+  if (!problemConfig || !problemConfig.parts || problemConfig.parts.length === 0) {
+    return [];
+  }
+  let currentPart = 0;
+  try {
+    if (fs.existsSync(workspaceMainPath)) {
+      const content = fs.readFileSync(workspaceMainPath, "utf8");
+      const jsPattern = /\/\/ ---- Part (\d+) ----/g;
+      const pyPattern = /# ---- Part (\d+) ----/g;
+      let maxPart = 0;
+      let match;
+      while ((match = jsPattern.exec(content)) !== null) {
+        const num = parseInt(match[1], 10);
+        if (num > maxPart) maxPart = num;
+      }
+      while ((match = pyPattern.exec(content)) !== null) {
+        const num = parseInt(match[1], 10);
+        if (num > maxPart) maxPart = num;
+      }
+      if (maxPart > 0) currentPart = maxPart - 1;
+    }
+  } catch {
+    // Fall back to part 0
+  }
+  return problemConfig.parts.slice(0, currentPart + 1);
+}
+
+/**
+ * Builds a run harness file for executing runInputs on save.
+ * Pure function — no I/O, no side effects.
+ *
+ * @param {object[]} unlockedParts - Part objects from problem.json (only unlocked parts)
+ * @param {string} language - 'javascript' or 'python'
+ * @returns {string|null} Complete harness file content, or null if no runInputs for the language
+ */
+export function buildRunHarness(unlockedParts, language) {
+  if (!unlockedParts || unlockedParts.length === 0) return null;
+
+  const langKey = language === "javascript" ? "javascript" : "python";
+  const entries = [];
+
+  for (let pi = 0; pi < unlockedParts.length; pi++) {
+    const part = unlockedParts[pi];
+    if (!part.runInputs || !Array.isArray(part.runInputs)) continue;
+    for (const input of part.runInputs) {
+      if (!input || input.language !== langKey) continue;
+      if (!input.function || !input.label || !Array.isArray(input.args)) continue;
+      entries.push({ ...input, partIndex: pi, partTitle: part.title || `Part ${pi + 1}` });
+    }
+  }
+
+  if (entries.length === 0) return null;
+
+  if (language === "javascript") {
+    return buildJsHarness(entries);
+  } else {
+    return buildPyHarness(entries);
+  }
+}
+
+function buildJsHarness(entries) {
+  const lines = [
+    "'use strict';",
+    "const mod = require('./main');",
+    "",
+    "function _deepEqual(a, b) {",
+    "  return JSON.stringify(a) === JSON.stringify(b);",
+    "}",
+  ];
+
+  let lastPartIndex = -1;
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    if (e.partIndex !== lastPartIndex) {
+      lines.push("");
+      lines.push(`// Part ${e.partIndex + 1}: ${e.partTitle}`);
+      lastPartIndex = e.partIndex;
+    }
+    const argsStr = e.args.map((a) => JSON.stringify(a)).join(", ");
+    const hasExpected = Object.prototype.hasOwnProperty.call(e, "expected");
+    lines.push("try {");
+    lines.push(`  const _r${i} = mod.${e.function}(${argsStr});`);
+    if (hasExpected) {
+      lines.push(`  const _e${i} = ${JSON.stringify(e.expected)};`);
+      lines.push(`  const _pass${i} = _deepEqual(_r${i}, _e${i});`);
+      lines.push(`  console.log('[${e.label}]', _pass${i} ? '\\u2714' : '\\u2718', JSON.stringify(_r${i}) + (`);
+      lines.push(`    _pass${i} ? '' : ' (expected ' + JSON.stringify(_e${i}) + ')'`);
+      lines.push(`  ));`);
+    } else {
+      lines.push(`  console.log('[${e.label}]', JSON.stringify(_r${i}));`);
+    }
+    lines.push("} catch (e) {");
+    lines.push(`  console.error('[${e.label}] ' + e.constructor.name + ': ' + e.message);`);
+    lines.push("}");
+  }
+
+  return lines.join("\n") + "\n";
+}
+
+function buildPyHarness(entries) {
+  const lines = [
+    "import sys, json",
+    "sys.path.insert(0, '.')",
+    "",
+    "def _deep_equal(a, b):",
+    "    return json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)",
+  ];
+
+  // Collect unique function names for imports
+  const funcNames = [...new Set(entries.map((e) => e.function))];
+  lines.push("");
+  lines.push(`from main import ${funcNames.join(", ")}`);
+
+  let lastPartIndex = -1;
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    if (e.partIndex !== lastPartIndex) {
+      lines.push("");
+      lines.push(`# Part ${e.partIndex + 1}: ${e.partTitle}`);
+      lastPartIndex = e.partIndex;
+    }
+    const argsStr = e.args.map((a) => jsonToPython(a)).join(", ");
+    const hasExpected = Object.prototype.hasOwnProperty.call(e, "expected");
+    lines.push("try:");
+    lines.push(`    _r${i} = ${e.function}(${argsStr})`);
+    if (hasExpected) {
+      lines.push(`    _e${i} = ${jsonToPython(e.expected)}`);
+      lines.push(`    _pass${i} = _deep_equal(_r${i}, _e${i})`);
+      lines.push(`    _suffix${i} = '' if _pass${i} else ' (expected ' + json.dumps(_e${i}) + ')'`);
+      lines.push(`    print('[${e.label}]', '\\u2714' if _pass${i} else '\\u2718', json.dumps(_r${i}) + _suffix${i})`);
+    } else {
+      lines.push(`    print('[${e.label}]', json.dumps(_r${i}))`);
+    }
+    lines.push("except Exception as e:");
+    lines.push(`    print('[${e.label}] ' + type(e).__name__ + ': ' + str(e))`);
+  }
+
+  return lines.join("\n") + "\n";
+}
+
+function jsonToPython(value) {
+  if (value === null) return "None";
+  if (value === true) return "True";
+  if (value === false) return "False";
+  if (typeof value === "string") return JSON.stringify(value);
+  if (typeof value === "number") return String(value);
+  if (Array.isArray(value)) {
+    return "[" + value.map((v) => jsonToPython(v)).join(", ") + "]";
+  }
+  if (typeof value === "object") {
+    const pairs = Object.entries(value).map(
+      ([k, v]) => JSON.stringify(k) + ": " + jsonToPython(v)
+    );
+    return "{" + pairs.join(", ") + "}";
+  }
+  return JSON.stringify(value);
+}
+
+/**
+ * Writes a run harness file to the workspace directory.
+ * Returns the absolute path written, or null if harnessContent was null.
+ * Never throws.
+ */
+export function writeRunHarness(workspacePath, language, harnessContent) {
+  if (harnessContent == null) return null;
+  try {
+    const filename = language === "javascript" ? "_run.js" : "_run.py";
+    const filePath = path.join(workspacePath, filename);
+    fs.writeFileSync(filePath, harnessContent, "utf8");
+    return filePath;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Deletes the run harness file from the workspace directory.
+ * Silently succeeds if the file does not exist.
+ * Never throws.
+ */
+export function deleteRunHarness(workspacePath, language) {
+  try {
+    const filename = language === "javascript" ? "_run.js" : "_run.py";
+    const filePath = path.join(workspacePath, filename);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  } catch {
+    // Silently ignore
+  }
+}
+
+/**
  * Returns workspace status for a problem: null, "in progress", "part N reached", or "complete".
  * Scans all workspace files (JS and Python) for the highest progress.
  */

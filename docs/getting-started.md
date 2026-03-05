@@ -91,7 +91,7 @@ VS Code opens (if available) with your solution file. The CLI shows the session 
 
 Auto-save is disabled in the practice VS Code workspace intentionally. Saves are manual so you control exactly when tests run — use **Cmd+S** (Mac) or **Ctrl+S** (Windows/Linux) to save and trigger a test run. If a test run appears to hang after saving, the runner will automatically kill the test process after 20 seconds and display a timeout warning. This most commonly happens with infinite loops. Adjust `testTimeoutSeconds` in `runner.config.json` if you need a longer timeout.
 
-Open the workspace file in your editor and start implementing the function. When you save the file, the CLI detects the change and runs the test suite automatically. Results appear in the summary line within a few seconds.
+Open the workspace file in your editor and start implementing the function. When you save the file, the CLI detects the change and runs the test suite automatically. Results appear in the summary line within a few seconds. If the problem defines example inputs, your solution also runs against those on every save — results and pass/fail appear in the console panel (press **L** to show). This is separate from the test suite.
 
 #### Console Output
 

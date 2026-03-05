@@ -12,6 +12,10 @@ import {
   hasWorkspaceFile,
   writeInitialScaffold,
   workspacePath,
+  getUnlockedParts,
+  buildRunHarness,
+  writeRunHarness,
+  deleteRunHarness,
 } from "../config.js";
 import {
   loadSession,
@@ -103,6 +107,14 @@ export default function SessionActive({
     if (!resumeData) {
       writeInitialScaffold(problem, language, config, rootDir);
     }
+
+    // Generate run harness from current unlocked state
+    const langKey = language === "JavaScript" ? "javascript" : "python";
+    const mainFilePath = workspacePath(problem, language, rootDir);
+    const wsPath = path.dirname(mainFilePath);
+    const unlockedParts = getUnlockedParts(config, mainFilePath);
+    const harnessContent = buildRunHarness(unlockedParts, langKey);
+    writeRunHarness(wsPath, langKey, harnessContent);
 
     // Create timer
     const timerOptions = {

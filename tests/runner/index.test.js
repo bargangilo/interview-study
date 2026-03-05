@@ -17,6 +17,10 @@ import {
   loadConfigSchema,
   readUserConfig,
   writeUserConfig,
+  getUnlockedParts,
+  buildRunHarness,
+  writeRunHarness,
+  deleteRunHarness,
 } from "../../runner/config.js";
 
 import sampleConfig from "./fixtures/sample-problem.json";
@@ -622,5 +626,402 @@ describe("truncate function behavior (structural verification)", () => {
     const result = truncate("A very long description that exceeds the limit", 20);
     expect(result).toHaveLength(20);
     expect(result.endsWith("\u2026")).toBe(true);
+  });
+});
+
+// --- getUnlockedParts ---
+
+describe("getUnlockedParts", () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  test("returns first part when no delimiters in workspace file", () => {
+    fs.existsSync.mockReturnValue(true);
+    fs.readFileSync.mockReturnValue("function partOne() {}");
+
+    const config = {
+      parts: [
+        { title: "Part 1", activeTests: ["a"] },
+        { title: "Part 2", activeTests: ["a", "b"] },
+      ],
+    };
+    const result = getUnlockedParts(config, "/fake/workspace/test/main.js");
+    expect(result).toHaveLength(1);
+    expect(result[0].title).toBe("Part 1");
+  });
+
+  test("returns two parts when Part 2 delimiter is present", () => {
+    fs.existsSync.mockReturnValue(true);
+    fs.readFileSync.mockReturnValue("code\n// ---- Part 2 ----\nmore code");
+
+    const config = {
+      parts: [
+        { title: "Part 1", activeTests: ["a"] },
+        { title: "Part 2", activeTests: ["a", "b"] },
+        { title: "Part 3", activeTests: ["a", "b", "c"] },
+      ],
+    };
+    const result = getUnlockedParts(config, "/fake/workspace/test/main.js");
+    expect(result).toHaveLength(2);
+    expect(result[1].title).toBe("Part 2");
+  });
+
+  test("returns empty array when config has no parts", () => {
+    const result = getUnlockedParts({ parts: [] }, "/fake/main.js");
+    expect(result).toEqual([]);
+  });
+
+  test("returns empty array when config is null", () => {
+    const result = getUnlockedParts(null, "/fake/main.js");
+    expect(result).toEqual([]);
+  });
+
+  test("returns first part when workspace file does not exist", () => {
+    fs.existsSync.mockReturnValue(false);
+
+    const config = {
+      parts: [{ title: "Part 1", activeTests: ["a"] }],
+    };
+    const result = getUnlockedParts(config, "/fake/main.js");
+    expect(result).toHaveLength(1);
+  });
+});
+
+// --- buildRunHarness (JavaScript) ---
+
+describe("buildRunHarness — JavaScript", () => {
+  const makePart = (title, runInputs) => ({
+    title,
+    activeTests: ["test"],
+    runInputs,
+  });
+
+  test("returns null when no unlocked parts have runInputs", () => {
+    const parts = [{ title: "P1", activeTests: ["a"] }];
+    expect(buildRunHarness(parts, "javascript")).toBeNull();
+  });
+
+  test("returns null when runInputs exist but none match the requested language", () => {
+    const parts = [
+      makePart("P1", [
+        { label: "test", language: "python", function: "fn", args: [1] },
+      ]),
+    ];
+    expect(buildRunHarness(parts, "javascript")).toBeNull();
+  });
+
+  test("generates correct require and deepEqual helper", () => {
+    const parts = [
+      makePart("P1", [
+        { label: "basic", language: "javascript", function: "fn", args: [1], expected: 1 },
+      ]),
+    ];
+    const harness = buildRunHarness(parts, "javascript");
+    expect(harness).toContain("'use strict';");
+    expect(harness).toContain("const mod = require('./main');");
+    expect(harness).toContain("function _deepEqual(a, b)");
+    expect(harness).toContain("JSON.stringify(a) === JSON.stringify(b)");
+  });
+
+  test("generates pass/fail check when expected is present", () => {
+    const parts = [
+      makePart("P1", [
+        { label: "basic", language: "javascript", function: "fn", args: [1], expected: 42 },
+      ]),
+    ];
+    const harness = buildRunHarness(parts, "javascript");
+    expect(harness).toContain("const _e0 = 42;");
+    expect(harness).toContain("const _pass0 = _deepEqual(_r0, _e0);");
+    expect(harness).toContain("'\\u2714'");
+    expect(harness).toContain("'\\u2718'");
+  });
+
+  test("omits pass/fail check when expected is absent", () => {
+    const parts = [
+      makePart("P1", [
+        { label: "basic", language: "javascript", function: "fn", args: [1] },
+      ]),
+    ];
+    const harness = buildRunHarness(parts, "javascript");
+    expect(harness).not.toContain("_e0");
+    expect(harness).not.toContain("_pass0");
+    expect(harness).toContain("console.log('[basic]', JSON.stringify(_r0));");
+  });
+
+  test("output line format with expected includes pass/fail markers and expected on fail", () => {
+    const parts = [
+      makePart("P1", [
+        { label: "case", language: "javascript", function: "fn", args: [1], expected: 5 },
+      ]),
+    ];
+    const harness = buildRunHarness(parts, "javascript");
+    expect(harness).toContain("' (expected '");
+  });
+
+  test("serializes array args correctly", () => {
+    const parts = [
+      makePart("P1", [
+        { label: "arr", language: "javascript", function: "fn", args: [[1, 2, 3]], expected: 6 },
+      ]),
+    ];
+    const harness = buildRunHarness(parts, "javascript");
+    expect(harness).toContain("mod.fn([1,2,3])");
+  });
+
+  test("serializes nested array args correctly", () => {
+    const parts = [
+      makePart("P1", [
+        { label: "nested", language: "javascript", function: "fn", args: [[1, [2, 3]]], expected: [1, 2, 3] },
+      ]),
+    ];
+    const harness = buildRunHarness(parts, "javascript");
+    expect(harness).toContain("mod.fn([1,[2,3]])");
+  });
+
+  test("serializes string args with quotes", () => {
+    const parts = [
+      makePart("P1", [
+        { label: "str", language: "javascript", function: "fn", args: ["hello"], expected: "HELLO" },
+      ]),
+    ];
+    const harness = buildRunHarness(parts, "javascript");
+    expect(harness).toContain('mod.fn("hello")');
+  });
+
+  test("serializes numeric args", () => {
+    const parts = [
+      makePart("P1", [
+        { label: "num", language: "javascript", function: "fn", args: [42, 3.14], expected: 45.14 },
+      ]),
+    ];
+    const harness = buildRunHarness(parts, "javascript");
+    expect(harness).toContain("mod.fn(42, 3.14)");
+  });
+
+  test("serializes expected value correctly", () => {
+    const parts = [
+      makePart("P1", [
+        { label: "exp", language: "javascript", function: "fn", args: [1], expected: [1, 2, 3] },
+      ]),
+    ];
+    const harness = buildRunHarness(parts, "javascript");
+    expect(harness).toContain("const _e0 = [1,2,3];");
+  });
+
+  test("adds part comment separator between parts", () => {
+    const parts = [
+      makePart("First Part", [
+        { label: "a", language: "javascript", function: "fn", args: [1], expected: 1 },
+      ]),
+      makePart("Second Part", [
+        { label: "b", language: "javascript", function: "fn2", args: [2], expected: 2 },
+      ]),
+    ];
+    const harness = buildRunHarness(parts, "javascript");
+    expect(harness).toContain("// Part 1: First Part");
+    expect(harness).toContain("// Part 2: Second Part");
+  });
+
+  test("variable names increment correctly", () => {
+    const parts = [
+      makePart("P1", [
+        { label: "a", language: "javascript", function: "fn", args: [1], expected: 1 },
+        { label: "b", language: "javascript", function: "fn", args: [2], expected: 2 },
+        { label: "c", language: "javascript", function: "fn", args: [3], expected: 3 },
+      ]),
+    ];
+    const harness = buildRunHarness(parts, "javascript");
+    expect(harness).toContain("_r0");
+    expect(harness).toContain("_r1");
+    expect(harness).toContain("_r2");
+    expect(harness).toContain("_e0");
+    expect(harness).toContain("_e1");
+    expect(harness).toContain("_e2");
+  });
+
+  test("error handler format includes label and error class", () => {
+    const parts = [
+      makePart("P1", [
+        { label: "fail case", language: "javascript", function: "fn", args: [1], expected: 1 },
+      ]),
+    ];
+    const harness = buildRunHarness(parts, "javascript");
+    expect(harness).toContain("} catch (e) {");
+    expect(harness).toContain("console.error('[fail case] ' + e.constructor.name + ': ' + e.message);");
+  });
+
+  test("multi-part accumulates inputs from all unlocked parts in order", () => {
+    const parts = [
+      makePart("P1", [
+        { label: "p1-a", language: "javascript", function: "fn1", args: [1], expected: 1 },
+      ]),
+      makePart("P2", [
+        { label: "p2-a", language: "javascript", function: "fn2", args: [2], expected: 2 },
+      ]),
+    ];
+    const harness = buildRunHarness(parts, "javascript");
+    const p1Pos = harness.indexOf("mod.fn1(1)");
+    const p2Pos = harness.indexOf("mod.fn2(2)");
+    expect(p1Pos).toBeLessThan(p2Pos);
+  });
+
+  test("skips malformed entries without function field", () => {
+    const parts = [
+      makePart("P1", [
+        { label: "bad", language: "javascript", args: [1] },
+        { label: "good", language: "javascript", function: "fn", args: [1], expected: 1 },
+      ]),
+    ];
+    const harness = buildRunHarness(parts, "javascript");
+    expect(harness).not.toContain("[bad]");
+    expect(harness).toContain("[good]");
+  });
+});
+
+// --- buildRunHarness (Python) ---
+
+describe("buildRunHarness — Python", () => {
+  const makePart = (title, runInputs) => ({
+    title,
+    activeTests: ["test"],
+    runInputs,
+  });
+
+  test("returns null when no python entries", () => {
+    const parts = [
+      makePart("P1", [
+        { label: "test", language: "javascript", function: "fn", args: [1] },
+      ]),
+    ];
+    expect(buildRunHarness(parts, "python")).toBeNull();
+  });
+
+  test("generates correct import structure and deep_equal helper", () => {
+    const parts = [
+      makePart("P1", [
+        { label: "basic", language: "python", function: "my_fn", args: [1], expected: 1 },
+      ]),
+    ];
+    const harness = buildRunHarness(parts, "python");
+    expect(harness).toContain("import sys, json");
+    expect(harness).toContain("sys.path.insert(0, '.')");
+    expect(harness).toContain("def _deep_equal(a, b):");
+    expect(harness).toContain("from main import my_fn");
+  });
+
+  test("generates pass/fail check when expected present", () => {
+    const parts = [
+      makePart("P1", [
+        { label: "basic", language: "python", function: "fn", args: [1], expected: 42 },
+      ]),
+    ];
+    const harness = buildRunHarness(parts, "python");
+    expect(harness).toContain("_e0 = 42");
+    expect(harness).toContain("_pass0 = _deep_equal(_r0, _e0)");
+    expect(harness).toContain("'\\u2714'");
+    expect(harness).toContain("'\\u2718'");
+  });
+
+  test("omits pass/fail when expected absent", () => {
+    const parts = [
+      makePart("P1", [
+        { label: "basic", language: "python", function: "fn", args: [1] },
+      ]),
+    ];
+    const harness = buildRunHarness(parts, "python");
+    expect(harness).not.toContain("_e0");
+    expect(harness).not.toContain("_pass0");
+    expect(harness).toContain("print('[basic]', json.dumps(_r0))");
+  });
+
+  test("converts null/bool/list to Python syntax", () => {
+    const parts = [
+      makePart("P1", [
+        { label: "conv", language: "python", function: "fn", args: [null, true, [1, 2]], expected: false },
+      ]),
+    ];
+    const harness = buildRunHarness(parts, "python");
+    expect(harness).toContain("fn(None, True, [1, 2])");
+    expect(harness).toContain("_e0 = False");
+  });
+});
+
+// --- writeRunHarness ---
+
+describe("writeRunHarness", () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  test("writes _run.js for javascript", () => {
+    fs.writeFileSync.mockImplementation(() => {});
+    const result = writeRunHarness("/fake/workspace/test", "javascript", "harness content");
+    expect(fs.writeFileSync).toHaveBeenCalledWith(
+      path.join("/fake/workspace/test", "_run.js"),
+      "harness content",
+      "utf8"
+    );
+    expect(result).toBe(path.join("/fake/workspace/test", "_run.js"));
+  });
+
+  test("writes _run.py for python", () => {
+    fs.writeFileSync.mockImplementation(() => {});
+    const result = writeRunHarness("/fake/workspace/test", "python", "harness content");
+    expect(fs.writeFileSync).toHaveBeenCalledWith(
+      path.join("/fake/workspace/test", "_run.py"),
+      "harness content",
+      "utf8"
+    );
+    expect(result).toBe(path.join("/fake/workspace/test", "_run.py"));
+  });
+
+  test("does nothing and returns null when harnessContent is null", () => {
+    fs.writeFileSync.mockClear();
+    fs.writeFileSync.mockImplementation(() => {});
+    const result = writeRunHarness("/fake/workspace/test", "javascript", null);
+    expect(fs.writeFileSync).not.toHaveBeenCalled();
+    expect(result).toBeNull();
+  });
+
+  test("returns written file path on success", () => {
+    fs.writeFileSync.mockImplementation(() => {});
+    const result = writeRunHarness("/fake/workspace/test", "javascript", "content");
+    expect(result).toBe(path.join("/fake/workspace/test", "_run.js"));
+  });
+
+  test("returns null on write failure instead of throwing", () => {
+    fs.writeFileSync.mockImplementation(() => {
+      throw new Error("EACCES");
+    });
+    const result = writeRunHarness("/fake/workspace/test", "javascript", "content");
+    expect(result).toBeNull();
+  });
+});
+
+// --- deleteRunHarness ---
+
+describe("deleteRunHarness", () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  test("deletes file when it exists", () => {
+    fs.existsSync.mockReturnValue(true);
+    fs.unlinkSync.mockImplementation(() => {});
+    deleteRunHarness("/fake/workspace/test", "javascript");
+    expect(fs.unlinkSync).toHaveBeenCalledWith(
+      path.join("/fake/workspace/test", "_run.js")
+    );
+  });
+
+  test("silently succeeds when file does not exist", () => {
+    fs.existsSync.mockReturnValue(false);
+    fs.unlinkSync.mockClear();
+    fs.unlinkSync.mockImplementation(() => {});
+    deleteRunHarness("/fake/workspace/test", "javascript");
+    expect(fs.unlinkSync).not.toHaveBeenCalled();
+  });
+
+  test("does not throw on unlink error", () => {
+    fs.existsSync.mockReturnValue(true);
+    fs.unlinkSync.mockImplementation(() => {
+      throw new Error("EACCES");
+    });
+    expect(() => deleteRunHarness("/fake/workspace/test", "javascript")).not.toThrow();
   });
 });

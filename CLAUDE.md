@@ -65,6 +65,7 @@ Interactive components use `Select`, `TextInput`, and `MultiSelect` from `@inkjs
 |---|---|---|
 | `problems/<name>/` | Problem config, stubs, test suites | Never |
 | `workspace/<name>/main.js`, `main.py` | Active solution file | Yes (scaffold, part appends, completion marker) |
+| `workspace/<name>/_run.js`, `_run.py` | Generated run harness | Yes (generated on session start, regenerated on part progression, deleted on clear) |
 | `workspace/<name>/session.json` | Timer state, attempt history | Yes (every tick + session end) |
 | `runner.config.json` | Runner behavior configuration (timeout, etc.) | No |
 | `tests/runner/` | Runner unit tests | Never |
