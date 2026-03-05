@@ -10,125 +10,56 @@
 
 ![node >= 18](https://img.shields.io/badge/node-%3E%3D18-brightgreen) ![yarn 4.13.0](https://img.shields.io/badge/yarn-4.13.0-blue) ![ESM](https://img.shields.io/badge/module-ESM-yellow)
 
-Select a problem, pick JavaScript or Python, and start coding — tests re-run automatically on every save. Problems reveal themselves progressively: you only see the next part after passing the current one. A built-in timer tracks your session, and stats persist across attempts so you can measure improvement over time. VS Code launches automatically with AI completions disabled for distraction-free practice.
+Select a problem, pick JavaScript or Python, and start coding — tests re-run automatically on every save. Problems reveal themselves progressively: you only see the next part after passing the current one. An AI agent can generate new problems, give hints mid-session, and review your solutions, but the CLI itself has no AI dependency. The irony is intentional: an AI-powered toolkit for practicing without AI.
 
-The repo also includes an agent skills system — point any AI coding agent at the repo and it can generate new problems, provide tiered hints mid-session, and review your completed solutions. The CLI itself has no AI dependency; the skills interact through the filesystem only.
-
----
-
-## Table of Contents
-
-- [Quick Start](#quick-start)
-- [Prerequisites](#prerequisites)
-- [How It Works](#how-it-works)
-- [Features](#features)
-- [Agent Skills](#agent-skills)
-- [Project Structure](#project-structure)
-- [Adding Problems](#adding-problems)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
+![Session in action](media/output/session-active.gif)
 
 ---
 
 ## Quick Start
 
 ```bash
-corepack enable                  # activates Yarn 4 (one-time setup)
+corepack enable
 git clone <repo-url> && cd handwritten
-yarn install                     # installs dependencies via Plug'n'Play (no node_modules/)
-yarn start                       # launches the CLI
+yarn install
+yarn start
 ```
 
-On first run, pick a problem, choose a language, and start editing the workspace file. Tests run on save.
-
-## Prerequisites
-
-| Requirement | Verify | Notes |
-|---|---|---|
-| **Node.js** (>=18) | `node --version` | Required for the CLI and Jest |
-| **Corepack** | `corepack --version` | Ships with Node 18+. Run `corepack enable` once to activate Yarn 4 |
-| **Yarn 4** | `yarn --version` | Managed via Corepack — do not install globally. The repo pins `yarn@4.13.0` in `package.json` |
-| **Python 3** | `python3 --version` | Required only for Python problems |
-| **pytest** | `pytest --version` | `pip install pytest`. Required only for Python problems |
-| **VS Code** + `code` CLI | `which code` | The CLI launches VS Code automatically. Install the shell command: Cmd+Shift+P > "Shell Command: Install 'code' command in PATH" |
-| **AI coding agent** | — | For agent skills only. Any agent with file access to the repo (Claude Code, Cursor, GitHub Copilot, Aider, or similar). The CLI itself has no AI dependency |
+On first run, select a problem, choose a language, and start coding. Tests re-run on every save.
 
 ---
 
-## How It Works
+## What's in the Box
 
-The repo separates read-only problem definitions from your working code. Problem configs, stubs, and test suites live in `problems/` and are never modified at runtime. When you start a problem, the CLI copies the starter scaffold into `workspace/<name>/`, which is gitignored — your progress stays local and the repo remains cleanly clonable.
+:repeat: **Hot-reload test runner** — save your file and tests run automatically, results in the summary line within seconds. [Details →](docs/getting-started.md#5-start-coding)
 
-Multi-part problems use progressive revelation. You start with Part 1's scaffold and tests. When all tests pass, the CLI appends the next part's scaffold to the same file and activates its tests. You never switch files — the solution accumulates as you advance. The total number of parts is hidden during a session; you only see how many you have unlocked.
+:jigsaw: **Progressive multi-part problems** — parts unlock as you pass tests, building on your solution in a single file. [Details →](docs/getting-started.md#progressive-revelation)
 
-Every session is timed. You choose between stopwatch mode (count up) and countdown mode (set a time limit). The timer runs in the summary line, pauses on demand, and persists to `session.json` so you can resume where you left off. On session end, the attempt is recorded with per-part split times for later review.
+:stopwatch: **Built-in timer** — stopwatch or countdown mode with color-coded urgency, pause support, and per-part split times. [Details →](docs/stats-and-timer.md)
 
-VS Code opens via a workspace file that disables GitHub Copilot, Tabnine, Codeium, and other AI completion extensions. A sandboxed user-data directory (`--user-data-dir .vscode-data`) ensures these settings only apply during practice sessions — your normal VS Code configuration is untouched.
+:bar_chart: **Stats and attempt history** — total practice time, solve times, streaks, and per-problem attempt history with splits. [Details →](docs/stats-and-timer.md#stats-computation)
 
----
+:gear: **Settings editor** — configure topics, difficulty, style, and generation behavior from the CLI or an agent skill. [Details →](docs/settings.md)
 
-## Features
+:robot: **Agent skills** — generate problems, get tiered hints mid-session, and receive structured solution reviews. [Details →](docs/agent-skills.md)
 
-### :computer: Starting a Problem
+:lock: **VS Code with AI completions disabled** — sandboxed editor session with Copilot, Tabnine, and Codeium turned off. [Details →](docs/getting-started.md#vs-code-sandboxing)
 
-The problem picker shows each problem's title, description, and a status badge indicating prior progress: `[in progress]`, `[part N reached]`, or `[complete]`. After selecting a problem and language, you set a time limit (countdown mode) or press Enter for stopwatch mode. If the problem defines `expectedMinutes` in its config, that value pre-populates the countdown prompt.
-
-Existing sessions prompt you to **resume** (restore your file and timer state) or **restart from scratch** (overwrite with the Part 1 scaffold). During a session, press **P** to pause/resume the timer and **Q** to save and return to the menu. Ctrl+C also saves the session before exiting.
-
-![Session in action](media/output/session-active.gif)
-
-### :bar_chart: Stats
-
-Aggregate practice statistics: total time, problems attempted and completed, average and best solve times, and your current streak (consecutive calendar days with at least one attempt). Select a problem to see per-problem details including attempt history with timestamps, completion status, countdown info, and per-part split times from your fastest run. See [docs/stats-and-timer.md](docs/stats-and-timer.md) for computation details.
-
-### :stopwatch: Timer
-
-Two modes: **stopwatch** counts up with no limit; **countdown** counts down from a set duration with color-coded urgency (green > yellow > red). Countdown mode continues into overtime rather than stopping. Milestone warnings print at 15/30/45 minutes (stopwatch) or 50%/25% remaining (countdown). The timer persists every second to `session.json` and restores on resume. See [docs/stats-and-timer.md](docs/stats-and-timer.md) for the full reference.
-
-### :books: Problem List
-
-A read-only browser for all available problems. Select any problem to see its full details — part titles, descriptions, and your current status. No session is started.
-
-### :gear: Settings
-
-![Handwritten settings menu](media/output/settings-menu.gif)
-
-The Settings menu is a built-in CLI editor for `config.json`. It reads field definitions from `.agents/config-schema.json` at runtime, so the menu always reflects the current schema — new config options added to the schema file appear here automatically. Browse sections, view current values, and edit any field with immediate save on confirmation. Works without an existing `config.json` (uses schema defaults) and without a schema file (displays a message and returns to the menu). The same settings can also be configured by running `/handwritten-config` from an AI agent.
-
-| Section | What It Controls | Configured Via |
-|---|---|---|
-| Topics | CS and programming concepts that appear in generated problems | Settings menu / `/handwritten-config` |
-| Difficulty | Difficulty range across algorithm, data structure, and problem complexity (1-5) | Settings menu / `/handwritten-config` |
-| Style | Problem framing: LeetCode (abstract), real-world (domain context), or mixed | Settings menu / `/handwritten-config` |
-| Language | Which programming languages have test suites generated | Settings menu / `/handwritten-config` |
-| Parts | How many progressive parts generated problems have | Settings menu / `/handwritten-config` |
-| Surprise Me | Whether generation parameters are randomized or asked interactively | Settings menu / `/handwritten-config` |
-| Hide Problem Details | What information is visible during and after problem generation | Settings menu / `/handwritten-config` |
-| Time Range | Range of expected problem-solving times in minutes | Settings menu / `/handwritten-config` |
-
-![Editing a settings field](media/output/settings-edit.gif)
-
-Editing the Topics field directly from the CLI.
-
-### :wastebasket: Clear a Problem
-
-Removes your workspace directory for a problem, deleting the solution file and session data. Only problems with existing workspaces appear. A confirmation prompt (defaulting to No) prevents accidental clears.
-
-### :outbox_tray: Export Skills
-
-Exports agent skill files from `.claude/skills/` to `.agents/skills/` for use with non-Claude-Code agents (Cursor, GitHub Copilot, Aider, etc.). Strips Claude Code's YAML frontmatter so the exported files are plain markdown. Also available as a standalone script: `node .agents/scripts/init-skills.js`.
+:clipboard: **Problem list browser** — browse all available problems with descriptions and your current status without starting a session. [Details →](docs/getting-started.md#8-review-your-stats)
 
 ---
 
-## Agent Skills
+## Docs
 
-The repo includes an agent skills system for AI-powered problem generation, progressive hints, and solution review. Skills are instruction documents that any AI coding agent can execute — they read configuration and problem data from the filesystem, generate new problems and test suites, and provide feedback on solutions. The CLI has zero dependency on the agent skills system; it does not require an API key and never invokes an agent at runtime.
+| Doc | What's in it |
+|---|---|
+| [Getting Started](docs/getting-started.md) | Prerequisites, install, first run walkthrough, VS Code setup, troubleshooting |
+| [Agent Skills](docs/agent-skills.md) | Generate problems, hints, solution review — full skills reference |
+| [Settings](docs/settings.md) | All config options, Surprise Me mode, detail hiding |
+| [Problem Schema](docs/problem-schema.md) | Adding problems, JSON schema reference, test conventions |
+| [Timer & Stats](docs/stats-and-timer.md) | Session persistence, timer modes, stats computation |
 
-Four skills are available: `/handwritten-config` creates your personal `config.json`, `/handwritten-generate` produces complete problem definitions with test suites, `/handwritten-hint` provides tiered hints during a session, and `/handwritten-review` delivers structured feedback on completed solutions.
-
-![Problem generation](media/output/generate-problem.png)
-
-See [docs/agent-skills.md](docs/agent-skills.md) for the full reference — prerequisites, agent-specific invocation instructions (Claude Code, Cursor, GitHub Copilot, Aider), Surprise Me mode, and troubleshooting.
+The CLI has no AI dependency. Agent skills are optional and interact through the filesystem only.
 
 ---
 
@@ -140,7 +71,6 @@ See [docs/agent-skills.md](docs/agent-skills.md) for the full reference — prer
   scripts/                   #   Randomization and utility scripts (with tests in tests/scripts/)
   templates/                 #   Schema and config templates
   context/                   #   Domain knowledge documents
-  skills/                    #   Generated exports for non-Claude-Code agents (gitignored)
 problems/                    # Read-only problem definitions (never modified at runtime)
   <name>/                    #   problem.json, stubs (main.js/py), test suites
 workspace/                   # Gitignored working area — solutions, sessions
@@ -149,7 +79,7 @@ runner/                      # CLI source (Node.js ESM, React/Ink)
 tests/                       # Unit tests (yarn test)
   runner/                    #   CLI logic tests
   scripts/                   #   Agent script tests
-media/                       # Screenshots and GIFs for README (regenerate with yarn media)
+media/                       # Screenshots, GIFs, VHS tapes, and fixtures
   tapes/                     #   VHS tape definitions
   fixtures/                  #   CLI state fixtures used during recording
   output/                    #   Generated screenshots and GIFs (committed)
@@ -157,48 +87,3 @@ scripts/                     # Repository utility scripts
 docs/                        # Reference documentation
 config.json                  # User-specific settings (gitignored) — copy from config.example.json
 ```
-
----
-
-## Adding Problems
-
-Each problem lives in its own directory under `problems/` with a `problem.json` config file. The CLI auto-detects problem directories on startup; any directory without a valid `problem.json` is skipped with a warning.
-
-Required files for a multi-part problem:
-
-```
-problems/<name>/
-  problem.json       # title, description, expectedMinutes, parts array
-  main.js            # JS stub — module.exports the main function(s)
-  main.py            # Python stub
-  suite.test.js      # All Jest tests for all parts in one file
-  suite.test.py      # All pytest tests for all parts in one file
-```
-
-The `parts` array in `problem.json` defines each part's title, description, `activeTests` (test names to run), and `scaffold` (starter code). Test names use spaces in `activeTests`; Jest matches them directly, and pytest function names mirror them with underscores prefixed by `test_`. Test files import from `../../workspace/<name>/main`, not from `problems/`.
-
-See [docs/problem-schema.md](docs/problem-schema.md) for the full schema reference, worked examples, and common mistakes.
-
----
-
-## Troubleshooting
-
-**VS Code does not open.** The `code` CLI is not on your `$PATH`. In VS Code: Cmd+Shift+P > "Shell Command: Install 'code' command in PATH". The CLI prints a warning and continues if `code` is not found.
-
-**Problem not showing in the menu.** The problem directory is missing a `problem.json` file, or the file contains invalid JSON. Check the CLI's startup warnings for details.
-
-**pytest not found.** Python problems require `pytest` on the system PATH. Install it with `pip install pytest` and verify with `pytest --version`.
-
-**Jest not discovering tests.** Problem suite files (`suite.test.js`, `sample.test.js`) are excluded from `yarn test` via `testPathIgnorePatterns` in `package.json`. This is intentional — those tests run only during interactive sessions via the CLI watcher. Runner unit tests in `tests/runner/` are the ones discovered by `yarn test`.
-
-**Malformed `session.json`.** If a session file becomes corrupted, the CLI logs a warning and treats the problem as having no session data. Delete the file (or use "Clear a Problem") to reset.
-
-**Node version issues.** The CLI requires Node 18 or later. Yarn 4 with Plug'n'Play requires Corepack, which ships with Node 18+. Run `corepack enable` if Yarn is not recognized.
-
-## Contributing
-
-Run the runner unit tests with `yarn test`. The test suite covers config loading, workspace management, UI output, file watching logic, timer math, and stats computation — all via mocked filesystem and process calls. No real I/O occurs during tests.
-
-Problem suite files (`problems/*/suite.test.*` and `problems/*/sample.test.*`) are not part of the test suite. They test user solutions during interactive sessions and are explicitly excluded from Jest discovery.
-
-Documentation standards are codified in [CLAUDE.md](CLAUDE.md). Any change to the runner, schemas, or user-facing behavior must include corresponding documentation updates.

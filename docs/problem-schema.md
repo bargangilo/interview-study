@@ -258,6 +258,37 @@ def test_single_number_nested_deep():
 
 **Malformed scaffold strings.** Scaffolds are JSON strings — newlines must be `\n`, quotes must be escaped. A malformed scaffold causes the workspace file to contain literal `\n` characters or broken syntax. Validate by pasting the scaffold value into a Node REPL: `console.log("...")` should produce valid source code.
 
+## Adding Problems
+
+Each problem lives in its own directory under `problems/` with a `problem.json` config file. The CLI auto-detects problem directories on startup; any directory without a valid `problem.json` is skipped with a warning.
+
+### Required Files
+
+```
+problems/<name>/
+  problem.json       # title, description, expectedMinutes, parts array
+  main.js            # JS stub — module.exports the main function(s)
+  main.py            # Python stub
+  suite.test.js      # All Jest tests for all parts in one file
+  suite.test.py      # All pytest tests for all parts in one file
+```
+
+The `parts` array in `problem.json` defines each part's title, description, `activeTests` (test names to run), and `scaffold` (starter code). Test names use spaces in `activeTests`; Jest matches them directly, and pytest function names mirror them with underscores prefixed by `test_`. Test files import from `../../workspace/<name>/main`, not from `problems/`.
+
+### Pre-Commit Checklist
+
+Before committing a new problem, verify every item:
+
+1. **`activeTests` strings match exactly.** Every string in every part's `activeTests` must exactly match the `test("...")` string in Jest and the function name (minus `test_` prefix, underscores for spaces) in pytest. Copy-paste — do not retype.
+2. **Tests import from `workspace/`, not `problems/`.** Jest: `require("../../workspace/<name>/main")`. pytest: `sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "workspace", "<name>"))`.
+3. **`activeTests` accumulates correctly.** If Part 2 should still run Part 1's tests, every Part 1 test name must appear in Part 2's `activeTests`. Verify by diffing the arrays.
+4. **JS scaffolds use additive exports for Part 2+.** Part 1 uses `module.exports = { fn }`. Part 2+ uses `module.exports.newFn = newFn`. Never reassign `module.exports` after Part 1.
+5. **pytest uses function-local imports.** Every test function imports the function under test inside the function body, not at the module level. This prevents `ImportError` for unlocked parts.
+6. **Scaffold strings are valid JSON.** Newlines are `\n`, quotes are escaped. Validate: `node -e "console.log(JSON.parse('\"<scaffold>\"'))"`.
+7. **The `problem.json` has valid JSON.** Run `node -e "require('./problems/<name>/problem.json')"`.
+8. **Every part has at least one test in `activeTests`.** The CLI requires `total > 0` for part advancement.
+9. **Run the test suite directly.** `yarn jest problems/<name>/suite.test.js --no-coverage` should discover and run all tests.
+
 ## Agent-Generated vs. Manually Authored Problems
 
 The `generatedBy` field distinguishes problems created by AI agent skills (`"agent"`) from those written by hand (`"manual"`). Manually authored problems may omit `topics`, `difficulty`, `style`, `generatedBy`, and `generatedAt` without affecting CLI behavior — the CLI does not read any of these fields. Agent-generated problems must always include all fields so that agent skills can filter, select, and avoid duplicating topics or difficulty levels across the problem set.

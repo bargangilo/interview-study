@@ -96,7 +96,7 @@ Read existing docs before writing new content and match the established register
 
 ### Cross-Reference Integrity
 
-When renaming anything — a file, a folder, a concept — grep all markdown files for references to the old name and update them. Stale cross-references are bugs.
+When renaming anything — a file, a folder, a concept — grep all markdown files for references to the old name and update them. When content moves from the README to a doc file, grep all markdown files for links to the README anchor (e.g. `README.md#troubleshooting`) and update them to point to the new doc location. Stale cross-references are bugs.
 
 ### New Features and New Docs
 
@@ -110,17 +110,19 @@ To regenerate all media: `yarn media` (requires [VHS](https://github.com/charmbr
 
 When adding a new screen: add a tape file, add fixture state if needed, add the output reference to the README, and run `yarn media`. When the `session.json` or `config.json` schema changes, update the corresponding fixture files in `media/fixtures/`. Screenshots are produced by `Screenshot` commands within tape files — never record a separate tape just to get a static image.
 
-### README Style and Presentation
+### README Shape
 
-The README has an ASCII art title block at the top — preserve it when making other changes; do not replace it with plain text. Media placeholder blocks (HTML comments with `TODO` directions for screenshots/GIFs) are intentional stubs — do not remove them. If actual media files are added in the future, update the stubs to real image references.
+The README is an orientation document, not a manual. It has exactly nine sections: ASCII art header, tagline with badges, hook paragraph, one GIF, Quick Start, What's in the Box, Docs table, and Project Structure. If a tenth section is needed, a doc file is needed instead.
 
-The project structure diagram shows top-level organization only, not a complete file inventory. When adding new directories, add them to the diagram with a one-line description. Do not add individual files unless they are genuinely notable at the repo level (e.g. `config.json`).
+The README word count should stay under 400 words of prose (excluding code blocks, the ASCII art, and tables). If it exceeds this, content must move to docs.
 
-Badges near the top reflect real, verifiable facts from `package.json` — only add new badges for things that are actually configured (node version, yarn version, module format). Do not add badges for CI, coverage, or other services that are not set up.
+Every feature mentioned in the README must link to a doc for depth. Never explain how something works in the README — only what it is. The Docs table is the navigation hub — keep it current. When a new doc file is created, add it to the Docs table on the same day.
 
-Emoji section markers (`:computer:`, `:bar_chart:`, etc.) are used sparingly — maximum one per major Features subsection — as visual anchors for scanning. Do not add emoji throughout prose, to section headers outside Features, or as decoration.
+The Quick Start section contains only the four install commands and one sentence. Never add explanatory prose to Quick Start.
 
-The agent skills system is mentioned in the opening description of the tool, not only in the dedicated Agent Skills section. When updating the opening paragraphs, ensure the agent skills mention is preserved as a natural part of describing what the tool is.
+When adding a new major feature: add one line to What's in the Box with a doc link, create or update the relevant doc, update the Docs table. Do not expand README prose.
+
+The ASCII art title block at the top must be preserved when making other changes. Badges near the top reflect real, verifiable facts from `package.json` — only add badges for things actually configured (node version, yarn version, module format). The project structure diagram shows top-level organization only. Emoji anchors are used in the What's in the Box list — one per item — and nowhere else in the README. The agent skills system is mentioned in the opening hook paragraph as a natural part of describing what the tool is.
 
 ## Testing
 
