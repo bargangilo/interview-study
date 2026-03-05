@@ -8,7 +8,7 @@
 
 **A hot-reload practice environment for coding interview problems.**
 
-![node >= 18](https://img.shields.io/badge/node-%3E%3D18-brightgreen) ![yarn 4.13.0](https://img.shields.io/badge/yarn-4.13.0-blue) ![ESM](https://img.shields.io/badge/module-ESM-yellow)
+![node >= 18](https://img.shields.io/badge/node-%3E%3D18-brightgreen) ![yarn 4.13.0](https://img.shields.io/badge/yarn-4.13.0-blue) ![ESM](https://img.shields.io/badge/module-ESM-yellow) ![license MIT](https://img.shields.io/badge/license-MIT-green)
 
 Select a problem, pick JavaScript or Python, and start coding — tests re-run automatically on every save. Problems reveal themselves progressively: you only see the next part after passing the current one. An AI agent can generate new problems, give hints mid-session, and review your solutions, but the CLI itself has no AI dependency. The irony is intentional: an AI-powered toolkit for practicing without AI.
 

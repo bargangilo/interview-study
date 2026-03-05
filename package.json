@@ -1,6 +1,7 @@
 {
   "name": "handwritten",
   "version": "1.0.0",
+  "license": "MIT",
   "type": "module",
   "private": true,
   "description": "Hot-reload practice environment for handwritten coding interview problems",
