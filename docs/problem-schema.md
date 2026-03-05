@@ -10,8 +10,26 @@ Every problem in this tool is defined by a `problem.json` file in `problems/<nam
 |---|---|---|---|
 | `title` | string | No | Display name in the problem picker and problem list. Defaults to the directory name if omitted. |
 | `description` | string | No | One-line summary shown below the title in the picker (truncated at 80 characters) and in full in the problem list detail view. |
+| `topics` | string[] | No | Lowercase topic tags (e.g. `["arrays", "hash maps"]`). Used by agent skills for filtering and problem selection. The CLI does not read this field. |
+| `difficulty` | object | No | Complexity ratings on a 1–5 scale. Used by agent skills for difficulty targeting. The CLI does not read this field. See [Difficulty Object](#difficulty-object). |
+| `style` | string | No | Problem style: `"leetcode"` (algorithmic, well-defined inputs/outputs) or `"real-world"` (practical scenario, open-ended design). Used by agent skills for generation targeting. The CLI does not read this field. |
 | `expectedMinutes` | integer | No | Suggested time limit in minutes. Pre-populates the countdown prompt at session start. See [stats-and-timer.md](stats-and-timer.md) for how this integrates with the timer. |
+| `generatedBy` | string | No | Origin of the problem: `"manual"` for hand-authored, `"agent"` for AI-generated. The CLI does not read this field. |
+| `generatedAt` | string | No | ISO 8601 timestamp of when the problem was generated. Empty string for manually authored problems. Set automatically by the generate-problem skill. The CLI does not read this field. |
 | `parts` | array | **Yes** | Ordered list of part objects. Must contain at least one entry. |
+
+### Difficulty Object
+
+The `difficulty` object contains four integer fields, each rated 1–5:
+
+| Field | Description |
+|---|---|
+| `algorithmComplexity` | Complexity of the algorithm required (1 = simple iteration, 5 = advanced graph/DP). |
+| `dataStructureComplexity` | Complexity of data structures involved (1 = arrays, 5 = tries/segment trees). |
+| `problemComplexity` | Difficulty of understanding and decomposing the problem (1 = obvious, 5 = multi-step insight). |
+| `overall` | Weighted composite: `(algorithmComplexity × 0.3) + (dataStructureComplexity × 0.3) + (problemComplexity × 0.4)`, rounded to the nearest integer. |
+
+Example: a problem requiring a hash map (algo 1, ds 2, problem 1) has overall = `(1×0.3) + (2×0.3) + (1×0.4) = 1.3`, rounded to **1**.
 
 ### Part Fields
 
@@ -131,7 +149,17 @@ A two-part problem called `flatten-and-sum`. Part 1 asks the user to flatten a n
 {
   "title": "Flatten and Sum",
   "description": "Flatten nested arrays and sum their elements",
+  "topics": ["arrays", "recursion"],
+  "difficulty": {
+    "algorithmComplexity": 2,
+    "dataStructureComplexity": 2,
+    "problemComplexity": 2,
+    "overall": 2
+  },
+  "style": "leetcode",
   "expectedMinutes": 25,
+  "generatedBy": "manual",
+  "generatedAt": "",
   "parts": [
     {
       "title": "Flatten a nested array",
@@ -229,3 +257,7 @@ def test_single_number_nested_deep():
 **Top-level imports in pytest.** Importing a function at the module level of `suite.test.py` causes an `ImportError` when that function's part has not been unlocked yet. Use function-local imports inside each test function body.
 
 **Malformed scaffold strings.** Scaffolds are JSON strings — newlines must be `\n`, quotes must be escaped. A malformed scaffold causes the workspace file to contain literal `\n` characters or broken syntax. Validate by pasting the scaffold value into a Node REPL: `console.log("...")` should produce valid source code.
+
+## Agent-Generated vs. Manually Authored Problems
+
+The `generatedBy` field distinguishes problems created by AI agent skills (`"agent"`) from those written by hand (`"manual"`). Manually authored problems may omit `topics`, `difficulty`, `style`, `generatedBy`, and `generatedAt` without affecting CLI behavior — the CLI does not read any of these fields. Agent-generated problems must always include all fields so that agent skills can filter, select, and avoid duplicating topics or difficulty levels across the problem set.

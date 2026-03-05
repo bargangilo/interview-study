@@ -1,0 +1,62 @@
+{
+  "title": "<string>",
+  "description": "<string>",
+  "topics": {
+    "_comment": "Array of lowercase topic tags. Used by agent skills for filtering and selection. The CLI does not read this field.",
+    "value": ["<string>", "<string>"]
+  },
+  "difficulty": {
+    "_comment": "All values 1-5. overall = (algorithmComplexity * 0.3) + (dataStructureComplexity * 0.3) + (problemComplexity * 0.4), rounded to nearest integer.",
+    "algorithmComplexity": "<integer 1-5>",
+    "dataStructureComplexity": "<integer 1-5>",
+    "problemComplexity": "<integer 1-5>",
+    "overall": "<integer 1-5>"
+  },
+  "style": {
+    "_comment": "Problem style. Valid values: 'leetcode' (algorithmic, well-defined inputs/outputs) or 'real-world' (practical scenario, open-ended design). Used by agent skills for generation targeting.",
+    "value": "<string: 'leetcode' | 'real-world'>"
+  },
+  "expectedMinutes": {
+    "_comment": "Suggested time limit in minutes. Pre-populates the countdown prompt at session start. Agent skills set this based on difficulty and part count.",
+    "value": "<integer>"
+  },
+  "generatedBy": {
+    "_comment": "Origin of the problem. 'manual' for hand-authored problems, 'agent' for AI-generated problems. The CLI does not read this field.",
+    "value": "<string: 'manual' | 'agent'>"
+  },
+  "generatedAt": {
+    "_comment": "ISO 8601 timestamp of when the problem was generated. Empty string for manually authored problems. Set automatically by the generate-problem skill.",
+    "value": "<string: ISO 8601 | empty>"
+  },
+  "parts": {
+    "_comment": "Ordered list of part objects. Must contain at least one entry. maxPartsGlobal in config.json caps the number of parts agent skills will generate, but the CLI itself imposes no limit.",
+    "value": [
+      {
+        "title": "<string>",
+        "description": "<string>",
+        "activeTests": {
+          "_comment": "Test names to run when this part is active. Must be non-empty. Each entry must exactly match the test('...') string in Jest and the function name (minus test_ prefix, with underscores for spaces) in pytest.",
+          "value": ["<string>", "<string>"]
+        },
+        "scaffold": {
+          "_comment": "Starter code injected into the workspace file. Part 1 scaffold is written as the full file. Part 2+ scaffolds are appended after a delimiter comment: '// ---- Part N ----' (JS) or '# ---- Part N ----' (Python).",
+          "js": "<string: JavaScript source code>",
+          "python": "<string: Python source code>"
+        }
+      },
+      {
+        "title": "<string>",
+        "description": "<string>",
+        "activeTests": {
+          "_comment": "Include prior part tests here if they should continue running. activeTests is NOT automatically cumulative.",
+          "value": ["<string from part 1>", "<string from part 1>", "<new test string>"]
+        },
+        "scaffold": {
+          "_comment": "Use additive exports in JS (module.exports.newFn = newFn) to avoid overwriting Part 1 exports. Empty string is valid if no new scaffold is needed.",
+          "js": "<string: JavaScript source code>",
+          "python": "<string: Python source code>"
+        }
+      }
+    ]
+  }
+}

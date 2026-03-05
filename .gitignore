@@ -1,4 +1,7 @@
 node_modules/
+
+# User configuration
+config.json
 .vscode-data/
 .pnp.*
 workspace/*

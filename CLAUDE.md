@@ -150,6 +150,16 @@ See [docs/problem-schema.md](docs/problem-schema.md) for the full schema referen
 - The `workspace/` folder is committed (via `.gitkeep`) but contents are gitignored
 - Problem test suites are co-located with problems in `problems/<name>/`
 
+## Agent Skills System
+
+The `.agents/` directory contains skill files, scripts, templates, and context documents for AI agent use. The CLI has zero dependency on the agent skills system — it does not require an API key and does not invoke any agent at runtime.
+
+The CLI and skills interact exclusively through the filesystem: skills write `problem.json` and test files into `problems/`, the CLI reads them. `config.json` at the repo root is gitignored and user-specific — never commit it, never hardcode its path assumptions.
+
+`parts.maxPartsGlobal` in `config.json` is a hard ceiling enforced by agent skills — the CLI itself does not enforce this limit, it is a generation-time constraint only.
+
+When adding new fields to `problem.json`, update `docs/problem-schema.md`, `.agents/templates/problem-schema-template.json`, and the worked examples in both files atomically.
+
 ## Things to Never Do
 
 - Use a package manager other than Yarn (`npm install`, `npx`, `pnpm`)

@@ -1,7 +1,17 @@
 {
   "title": "Flatten and Sum",
   "description": "Flatten nested arrays and sum their elements",
+  "topics": ["arrays", "recursion"],
+  "difficulty": {
+    "algorithmComplexity": 2,
+    "dataStructureComplexity": 2,
+    "problemComplexity": 2,
+    "overall": 2
+  },
+  "style": "leetcode",
   "expectedMinutes": 25,
+  "generatedBy": "manual",
+  "generatedAt": "",
   "parts": [
     {
       "title": "Flatten a nested array",

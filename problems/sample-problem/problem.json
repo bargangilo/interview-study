@@ -1,7 +1,17 @@
 {
   "title": "Two Sum & Three Sum",
   "description": "Classic array search problems — from brute force to optimized to triplets",
+  "topics": ["arrays", "hash maps"],
+  "difficulty": {
+    "algorithmComplexity": 1,
+    "dataStructureComplexity": 2,
+    "problemComplexity": 1,
+    "overall": 1
+  },
+  "style": "leetcode",
   "expectedMinutes": 30,
+  "generatedBy": "manual",
+  "generatedAt": "",
   "parts": [
     {
       "title": "Two Sum — Brute Force",

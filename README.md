@@ -65,7 +65,13 @@ Removes your workspace directory for a problem, deleting the solution file and s
 ## Project Structure
 
 ```
-problems/                          # Read-only problem definitions (never modified at runtime)
+config.json                            # User-specific settings (gitignored) — copy from config.example.json
+.agents/                               # Agent skills system (no runtime dependency)
+  skills/                              # Agent skill instruction files
+  scripts/                             # Randomization and utility scripts
+  templates/                           # Schema and config templates
+  context/                             # Domain knowledge documents for agent skills
+problems/                              # Read-only problem definitions (never modified at runtime)
   <name>/
     problem.json                   # Problem config — title, parts, tests, scaffolds
     main.js                        # JS stub (used for language detection)
@@ -136,6 +142,12 @@ problems/<name>/
 The `parts` array in `problem.json` defines each part's title, description, `activeTests` (test names to run), and `scaffold` (starter code). Test names use spaces in `activeTests`; Jest matches them directly, and pytest function names mirror them with underscores prefixed by `test_`. Test files import from `../../workspace/<name>/main`, not from `problems/`.
 
 See [docs/problem-schema.md](docs/problem-schema.md) for the full schema reference, worked examples, and common mistakes.
+
+## Agent Skills
+
+The repo includes agent skills for problem generation, hints, and solution review. These skills are invokable from any AI coding agent with file access — they read `config.json` and problem definitions from the filesystem and write new `problem.json` files and test suites directly into `problems/`. The CLI has zero dependency on the agent skills system; it does not require an API key and never invokes an agent at runtime.
+
+Full documentation for each skill, its inputs, and its behavior is in `docs/agent-skills.md` (available after skill implementation is complete).
 
 ## Troubleshooting
 
