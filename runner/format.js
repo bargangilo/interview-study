@@ -90,6 +90,101 @@ function truncate(str) {
 }
 
 /**
+ * Parses Jest --json output into structured test failure objects.
+ * Never throws — returns [] for null, invalid JSON, or no failures.
+ *
+ * @param {string|null} jestJsonString - raw JSON string from Jest --json output
+ * @returns {Array<{name: string, input: string|null, expected: string|null, received: string|null}>}
+ */
+export function parseTestFailures(jestJsonString) {
+  if (!jestJsonString) return [];
+
+  let parsed;
+  try {
+    parsed = JSON.parse(jestJsonString);
+  } catch {
+    return [];
+  }
+
+  const failures = [];
+
+  try {
+    const testResults = parsed.testResults;
+    if (!Array.isArray(testResults)) return [];
+
+    for (const suite of testResults) {
+      const assertions = suite.assertionResults;
+      if (!Array.isArray(assertions)) continue;
+
+      for (const assertion of assertions) {
+        if (assertion.status !== "failed") continue;
+
+        const name = assertion.title || "unknown test";
+        let input = null;
+        let expected = null;
+        let received = null;
+
+        const messages = assertion.failureMessages;
+        if (Array.isArray(messages) && messages.length > 0) {
+          const msg = messages[0];
+
+          // Extract Expected: line
+          const expectedMatch = msg.match(/^Expected: (.+)$/m);
+          if (expectedMatch) {
+            expected = truncate(expectedMatch[1]);
+          }
+
+          // Extract Received: line
+          const receivedMatch = msg.match(/^Received: (.+)$/m);
+          if (receivedMatch) {
+            received = truncate(receivedMatch[1]);
+          }
+
+          // Extract input from the assertion call line (the one with ^ pointer below it)
+          // Jest formats code frames as: "   9 |     expect(...).toEqual(...)"
+          // with the caret line as:       "     |     ^"
+          // After the "| " prefix, the caret appears.
+          const lines = msg.split("\n");
+          for (let i = 0; i < lines.length - 1; i++) {
+            const line = lines[i];
+            const nextLine = lines[i + 1];
+            // The caret line has format: "     |     ^" — strip the "| " prefix before checking
+            const afterPipe = nextLine.includes("|") ? nextLine.slice(nextLine.indexOf("|") + 1) : nextLine;
+            if (afterPipe.trim().startsWith("^") && line.includes("expect(")) {
+              // Extract the argument to the outermost function call inside expect()
+              const expectIdx = line.indexOf("expect(");
+              if (expectIdx !== -1) {
+                const afterExpect = line.slice(expectIdx + 7); // after "expect("
+                // Find the matching closing paren for expect(...)
+                let depth = 1;
+                let endIdx = -1;
+                for (let c = 0; c < afterExpect.length; c++) {
+                  if (afterExpect[c] === "(") depth++;
+                  else if (afterExpect[c] === ")") {
+                    depth--;
+                    if (depth === 0) { endIdx = c; break; }
+                  }
+                }
+                if (endIdx > 0) {
+                  input = truncate(afterExpect.slice(0, endIdx));
+                }
+              }
+              break;
+            }
+          }
+        }
+
+        failures.push({ name, input, expected, received });
+      }
+    }
+  } catch {
+    // Partial results are fine
+  }
+
+  return failures;
+}
+
+/**
  * Parses raw harness stdout/stderr into structured output objects.
  * Never throws — unexpected formats return whatever is parseable.
  *

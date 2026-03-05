@@ -96,7 +96,7 @@ Open the workspace file in your editor and start implementing the function. Savi
 - **Save** (Cmd+S / Ctrl+S) runs your solution against example inputs defined in the problem. Results appear in the run output panel (press **L** to show). If the problem defines expected values for its examples, the panel shows pass/fail indicators. Any `console.log` output from your solution also appears here.
 - **T** runs the full test suite. Results appear in the summary line. Part progression only happens when tests pass.
 
-Press **T** when you are ready to check your work against the test suite. The summary line shows both the most recent run status and the test results.
+Press **T** when you are ready to check your work against the test suite. The summary line shows both the most recent run status and the test results. When tests fail, the failing test name, input, expected output, and your actual output appear automatically in the console panel — no keypress required. This gives you enough information to debug without revealing passing test cases. Press **L** to toggle the run output section.
 
 #### Run Output
 

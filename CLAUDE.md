@@ -72,6 +72,8 @@ Interactive components use `Select`, `TextInput`, and `MultiSelect` from `@inkjs
 
 `runner.config.json` is committed and represents project defaults. `loadRunnerConfig()` always returns a usable object — it never throws and falls back to hardcoded defaults if the file is missing or malformed.
 
+Jest is invoked with `--json` in `runTestSuite()` to get structured output. The failure message parsing in `parseTestFailures()` in `format.js` depends on Jest's formatted assertion output format — if Jest is upgraded, verify the `Expected:` / `Received:` line format and the assertion call line format (code frame with `|` column separator and `^` caret) are still parseable.
+
 Problem test suites (`suite.test.js`, `sample.test.js`, etc.) live inside `problems/<name>/`. They are excluded from `yarn test` via `testPathIgnorePatterns` in `package.json`.
 
 ## Documentation Standards

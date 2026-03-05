@@ -568,7 +568,7 @@ describe("runTests() imperative method", () => {
     );
   });
 
-  test("onTestResult called with pass/fail counts", async () => {
+  test("onTestResult called with pass/fail counts from JSON", async () => {
     const onRunResult = jest.fn();
     const onTestResult = jest.fn();
 
@@ -585,7 +585,8 @@ describe("runTests() imperative method", () => {
     spawn.mockReturnValue(testProc);
     watcher.runTests();
 
-    testProc.emitStdout("Tests: 3 passed, 3 total\n");
+    const jestJson = JSON.stringify({ numPassedTests: 3, numFailedTests: 0, testResults: [] });
+    testProc.emitStdout(jestJson);
     testProc.emit("close", 0, null);
     await flush();
 
@@ -635,7 +636,8 @@ describe("runTests() imperative method", () => {
     spawn.mockReturnValue(testProc);
     watcher.runTests();
 
-    testProc.emitStdout("Tests: 1 passed, 1 total\n");
+    const jestJson = JSON.stringify({ numPassedTests: 1, numFailedTests: 0, testResults: [] });
+    testProc.emitStdout(jestJson);
     testProc.emit("close", 0, null);
     await flush();
 
@@ -695,7 +697,8 @@ describe("separation of run and test paths", () => {
     spawn.mockReturnValue(testProc);
     watcher.runTests();
 
-    testProc.emitStdout("Tests: 1 passed, 1 total\n");
+    const jestJson = JSON.stringify({ numPassedTests: 1, numFailedTests: 0, testResults: [] });
+    testProc.emitStdout(jestJson);
     testProc.emit("close", 0, null);
     await flush();
 
@@ -724,11 +727,182 @@ describe("separation of run and test paths", () => {
     spawn.mockReturnValue(testProc);
     watcher.runTests();
 
-    testProc.emitStdout("Tests: 2 passed, 2 total\n");
+    const jestJson = JSON.stringify({ numPassedTests: 2, numFailedTests: 0, testResults: [] });
+    testProc.emitStdout(jestJson);
     testProc.emit("close", 0, null);
     await flush();
 
     expect(onPartAdvanced).toHaveBeenCalled();
+  });
+});
+
+// --- Jest JSON mode ---
+
+describe("Jest JSON output mode", () => {
+  let mockProc;
+  let mockWatcherObj;
+
+  beforeEach(() => {
+    mockProc = createMockProcess();
+    mockWatcherObj = createMockWatcher();
+    spawn.mockReturnValue(mockProc);
+    chokidar.watch.mockReturnValue(mockWatcherObj);
+    setupRunnerConfigMock({ testTimeoutSeconds: 5 });
+  });
+
+  afterEach(() => jest.restoreAllMocks());
+
+  test("runTests() passes --json flag to Jest", async () => {
+    const onRunResult = jest.fn();
+    const onTestResult = jest.fn();
+
+    const watcher = startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
+      onRunResult,
+      onTestResult,
+    });
+
+    mockProc.emit("close", 0, null);
+    await flush();
+
+    const testProc = createMockProcess();
+    spawn.mockReturnValue(testProc);
+    watcher.runTests();
+
+    const jestArgs = spawn.mock.calls[spawn.mock.calls.length - 1][1];
+    expect(jestArgs).toContain("--json");
+  });
+
+  test("onTestResult payload includes jestJson field as string", async () => {
+    const onRunResult = jest.fn();
+    const onTestResult = jest.fn();
+
+    const watcher = startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
+      onRunResult,
+      onTestResult,
+    });
+
+    mockProc.emit("close", 0, null);
+    await flush();
+
+    const testProc = createMockProcess();
+    spawn.mockReturnValue(testProc);
+    watcher.runTests();
+
+    const jestJson = JSON.stringify({ numPassedTests: 2, numFailedTests: 1, testResults: [] });
+    testProc.emitStdout(jestJson);
+    testProc.emit("close", 0, null);
+    await flush();
+
+    const result = onTestResult.mock.calls[0][0];
+    expect(result.jestJson).toBe(jestJson);
+    expect(typeof result.jestJson).toBe("string");
+  });
+
+  test("onTestResult payload has jestJson: null on timeout", async () => {
+    jest.useFakeTimers();
+    const onRunResult = jest.fn();
+    const onTestResult = jest.fn();
+
+    const watcher = startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
+      onRunResult,
+      onTestResult,
+    });
+
+    // Complete initial harness run
+    mockProc.emit("close", 0, null);
+    await jest.advanceTimersByTimeAsync(0);
+
+    const testProc = createMockProcess();
+    spawn.mockReturnValue(testProc);
+    watcher.runTests();
+
+    // Advance past timeout
+    jest.advanceTimersByTime(5000);
+    expect(testProc.kill).toHaveBeenCalledWith("SIGKILL");
+
+    testProc.emit("close", null, "SIGKILL");
+    await jest.advanceTimersByTimeAsync(0);
+
+    expect(onTestResult).toHaveBeenCalledWith(
+      expect.objectContaining({ jestJson: null, timedOut: true })
+    );
+
+    jest.useRealTimers();
+  });
+
+  test("onTestResult payload has jestJson: null on crash", async () => {
+    const onRunResult = jest.fn();
+    const onTestResult = jest.fn();
+
+    const watcher = startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
+      onRunResult,
+      onTestResult,
+    });
+
+    mockProc.emit("close", 0, null);
+    await flush();
+
+    const testProc = createMockProcess();
+    spawn.mockReturnValue(testProc);
+    watcher.runTests();
+
+    testProc.emit("close", 2, null);
+    await flush();
+
+    expect(onTestResult).toHaveBeenCalledWith(
+      expect.objectContaining({ jestJson: null, crashed: true })
+    );
+  });
+
+  test("pass/fail counts read from parsed JSON", async () => {
+    const onRunResult = jest.fn();
+    const onTestResult = jest.fn();
+
+    const watcher = startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
+      onRunResult,
+      onTestResult,
+    });
+
+    mockProc.emit("close", 0, null);
+    await flush();
+
+    const testProc = createMockProcess();
+    spawn.mockReturnValue(testProc);
+    watcher.runTests();
+
+    const jestJson = JSON.stringify({ numPassedTests: 5, numFailedTests: 2, testResults: [] });
+    testProc.emitStdout(jestJson);
+    testProc.emit("close", 1, null);
+    await flush();
+
+    expect(onTestResult).toHaveBeenCalledWith(
+      expect.objectContaining({ passed: 5, total: 7 })
+    );
+  });
+
+  test("falls back to crashed: true when stdout is not valid JSON", async () => {
+    const onRunResult = jest.fn();
+    const onTestResult = jest.fn();
+
+    const watcher = startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
+      onRunResult,
+      onTestResult,
+    });
+
+    mockProc.emit("close", 0, null);
+    await flush();
+
+    const testProc = createMockProcess();
+    spawn.mockReturnValue(testProc);
+    watcher.runTests();
+
+    testProc.emitStdout("not valid json at all");
+    testProc.emit("close", 0, null);
+    await flush();
+
+    expect(onTestResult).toHaveBeenCalledWith(
+      expect.objectContaining({ crashed: true, jestJson: null })
+    );
   });
 });
 

@@ -2,7 +2,7 @@
  * Application state machine for the CLI.
  * Pure state transitions — no side effects, no I/O.
  */
-import { formatRunOutput } from "./format.js";
+import { formatRunOutput, parseTestFailures } from "./format.js";
 
 export const Screen = {
   MAIN_MENU: "MAIN_MENU",
@@ -91,6 +91,7 @@ export const initialState = {
   runCrashed: false,
   runSkipped: false,
   runOutput: [],
+  testFailures: [],
   showLogs: false,
   watcherError: null,
   // Settings context
@@ -250,7 +251,11 @@ export function reducer(state, action) {
       };
     }
     case Action.TEST_RESULT_RECEIVED:
-      return { ...state, watcherError: null };
+      return {
+        ...state,
+        testFailures: parseTestFailures(action.jestJson || null),
+        watcherError: null,
+      };
     case Action.RUN_TESTS:
       return state;
     case Action.WATCHER_ERROR:

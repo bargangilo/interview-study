@@ -5,6 +5,7 @@ import {
   formatGlobalStats,
   formatProblemStats,
   formatRunOutput,
+  parseTestFailures,
 } from "../../runner/format.js";
 
 // Strip ANSI escape codes for content assertions
@@ -275,6 +276,247 @@ describe("formatRunOutput", () => {
   test("empty stderr produces no stderr entries", () => {
     const result = formatRunOutput("[test] \u2714 ok\n", "");
     expect(result.filter((e) => e.type === "stderr")).toHaveLength(0);
+  });
+});
+
+// --- parseTestFailures ---
+
+function makeJestJson({ testResults }) {
+  return JSON.stringify({ testResults, numPassedTests: 0, numFailedTests: 1 });
+}
+
+function makeFailureMessage({ expected, received, callLine }) {
+  const lines = [
+    "expect(received).toEqual(expected)",
+    "",
+    `Expected: ${expected}`,
+    `Received: ${received}`,
+    "",
+    "   8 |   test(\"test name\", () => {",
+  ];
+  if (callLine) {
+    lines.push(`   9 |     ${callLine}`);
+    lines.push("     |     ^");
+  }
+  lines.push("  10 |   });");
+  return lines.join("\n");
+}
+
+describe("parseTestFailures", () => {
+  test("returns [] for null input", () => {
+    expect(parseTestFailures(null)).toEqual([]);
+  });
+
+  test("returns [] for invalid JSON string", () => {
+    expect(parseTestFailures("not valid json {{")).toEqual([]);
+  });
+
+  test("returns [] for valid Jest JSON with no failures", () => {
+    const json = JSON.stringify({
+      testResults: [{
+        testFilePath: "/test.js",
+        assertionResults: [
+          { status: "passed", title: "works", failureMessages: [] },
+        ],
+      }],
+    });
+    expect(parseTestFailures(json)).toEqual([]);
+  });
+
+  test("returns correct failure object for single failing test with all fields", () => {
+    const msg = makeFailureMessage({
+      expected: "[0, 1, 1]",
+      received: "[0, 0, 1]",
+      callLine: 'expect(assignRooms([[0,30],[5,10]], [[7,10]])).toEqual([0,1,1])',
+    });
+    const json = makeJestJson({
+      testResults: [{
+        testFilePath: "/test.js",
+        assertionResults: [
+          { status: "failed", title: "handles many rooms", failureMessages: [msg] },
+        ],
+      }],
+    });
+    const result = parseTestFailures(json);
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe("handles many rooms");
+    expect(result[0].expected).toBe("[0, 1, 1]");
+    expect(result[0].received).toBe("[0, 0, 1]");
+    expect(result[0].input).toBe("assignRooms([[0,30],[5,10]], [[7,10]])");
+  });
+
+  test("extracts name correctly from assertionResults.title", () => {
+    const msg = makeFailureMessage({ expected: "1", received: "2", callLine: null });
+    const json = makeJestJson({
+      testResults: [{
+        testFilePath: "/test.js",
+        assertionResults: [
+          { status: "failed", title: "returns null when no room available", failureMessages: [msg] },
+        ],
+      }],
+    });
+    const result = parseTestFailures(json);
+    expect(result[0].name).toBe("returns null when no room available");
+  });
+
+  test("extracts expected from Expected: line in failure message", () => {
+    const msg = makeFailureMessage({ expected: '["B"]', received: '["A"]', callLine: null });
+    const json = makeJestJson({
+      testResults: [{
+        testFilePath: "/test.js",
+        assertionResults: [
+          { status: "failed", title: "test", failureMessages: [msg] },
+        ],
+      }],
+    });
+    expect(parseTestFailures(json)[0].expected).toBe('["B"]');
+  });
+
+  test("extracts received from Received: line in failure message", () => {
+    const msg = makeFailureMessage({ expected: "true", received: "false", callLine: null });
+    const json = makeJestJson({
+      testResults: [{
+        testFilePath: "/test.js",
+        assertionResults: [
+          { status: "failed", title: "test", failureMessages: [msg] },
+        ],
+      }],
+    });
+    expect(parseTestFailures(json)[0].received).toBe("false");
+  });
+
+  test("extracts input from the assertion call line", () => {
+    const msg = makeFailureMessage({
+      expected: "[1]",
+      received: "[2]",
+      callLine: 'expect(mod.findRooms(rooms, bookings, requests)).toEqual([1])',
+    });
+    const json = makeJestJson({
+      testResults: [{
+        testFilePath: "/test.js",
+        assertionResults: [
+          { status: "failed", title: "test", failureMessages: [msg] },
+        ],
+      }],
+    });
+    expect(parseTestFailures(json)[0].input).toBe("mod.findRooms(rooms, bookings, requests)");
+  });
+
+  test("returns input: null when assertion call line is not parseable", () => {
+    const msg = makeFailureMessage({ expected: "1", received: "2", callLine: null });
+    const json = makeJestJson({
+      testResults: [{
+        testFilePath: "/test.js",
+        assertionResults: [
+          { status: "failed", title: "test", failureMessages: [msg] },
+        ],
+      }],
+    });
+    expect(parseTestFailures(json)[0].input).toBeNull();
+  });
+
+  test("handles multiple failing tests — returns one object per failure", () => {
+    const msg1 = makeFailureMessage({ expected: "1", received: "2", callLine: null });
+    const msg2 = makeFailureMessage({ expected: "3", received: "4", callLine: null });
+    const json = makeJestJson({
+      testResults: [{
+        testFilePath: "/test.js",
+        assertionResults: [
+          { status: "failed", title: "test one", failureMessages: [msg1] },
+          { status: "failed", title: "test two", failureMessages: [msg2] },
+        ],
+      }],
+    });
+    const result = parseTestFailures(json);
+    expect(result).toHaveLength(2);
+    expect(result[0].name).toBe("test one");
+    expect(result[1].name).toBe("test two");
+  });
+
+  test("ignores passing tests — only failing assertions in output", () => {
+    const msg = makeFailureMessage({ expected: "1", received: "2", callLine: null });
+    const json = makeJestJson({
+      testResults: [{
+        testFilePath: "/test.js",
+        assertionResults: [
+          { status: "passed", title: "passes", failureMessages: [] },
+          { status: "failed", title: "fails", failureMessages: [msg] },
+          { status: "passed", title: "also passes", failureMessages: [] },
+        ],
+      }],
+    });
+    const result = parseTestFailures(json);
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe("fails");
+  });
+
+  test("truncates input at 200 chars with ellipsis", () => {
+    const longInput = "x".repeat(250);
+    const msg = makeFailureMessage({
+      expected: "1",
+      received: "2",
+      callLine: `expect(fn(${longInput})).toEqual(1)`,
+    });
+    const json = makeJestJson({
+      testResults: [{
+        testFilePath: "/test.js",
+        assertionResults: [
+          { status: "failed", title: "test", failureMessages: [msg] },
+        ],
+      }],
+    });
+    const result = parseTestFailures(json);
+    expect(result[0].input.length).toBe(201);
+    expect(result[0].input.endsWith("\u2026")).toBe(true);
+  });
+
+  test("truncates expected at 200 chars with ellipsis", () => {
+    const longExpected = "y".repeat(250);
+    const msg = makeFailureMessage({ expected: longExpected, received: "2", callLine: null });
+    const json = makeJestJson({
+      testResults: [{
+        testFilePath: "/test.js",
+        assertionResults: [
+          { status: "failed", title: "test", failureMessages: [msg] },
+        ],
+      }],
+    });
+    const result = parseTestFailures(json);
+    expect(result[0].expected.length).toBe(201);
+    expect(result[0].expected.endsWith("\u2026")).toBe(true);
+  });
+
+  test("truncates received at 200 chars with ellipsis", () => {
+    const longReceived = "z".repeat(250);
+    const msg = makeFailureMessage({ expected: "1", received: longReceived, callLine: null });
+    const json = makeJestJson({
+      testResults: [{
+        testFilePath: "/test.js",
+        assertionResults: [
+          { status: "failed", title: "test", failureMessages: [msg] },
+        ],
+      }],
+    });
+    const result = parseTestFailures(json);
+    expect(result[0].received.length).toBe(201);
+    expect(result[0].received.endsWith("\u2026")).toBe(true);
+  });
+
+  test("does not throw on malformed failure message — returns partial result", () => {
+    const json = makeJestJson({
+      testResults: [{
+        testFilePath: "/test.js",
+        assertionResults: [
+          { status: "failed", title: "broken test", failureMessages: ["totally unexpected format"] },
+        ],
+      }],
+    });
+    const result = parseTestFailures(json);
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe("broken test");
+    expect(result[0].expected).toBeNull();
+    expect(result[0].received).toBeNull();
+    expect(result[0].input).toBeNull();
   });
 });
 

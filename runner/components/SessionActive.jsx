@@ -83,6 +83,7 @@ export default function SessionActive({
   runOutput,
   lastRunAt,
   showLogs,
+  testFailures,
   rootDir,
 }) {
   const [testState, setTestState] = useState({
@@ -233,6 +234,7 @@ export default function SessionActive({
           timeoutSeconds: result.timeoutSeconds || null,
           exitCode: result.exitCode || null,
         });
+        dispatch({ type: Action.TEST_RESULT_RECEIVED, jestJson: result.jestJson || null });
         if (result.partInfo) setPartInfo(result.partInfo);
         setErrorMessage(null);
       },
@@ -409,7 +411,7 @@ export default function SessionActive({
           lastRunAt={lastRunAt}
         />
       )}
-      <ConsoleOutput lines={runOutput} visible={showLogs} lastRunAt={lastRunAt} />
+      <ConsoleOutput lines={runOutput} visible={showLogs} lastRunAt={lastRunAt} testFailures={testFailures} />
       {errorMessage ? (
         <Text color="red">{"  "}Runner error: {errorMessage} {"\u2014"} save again to retry</Text>
       ) : null}

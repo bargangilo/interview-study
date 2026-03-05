@@ -19,6 +19,7 @@ describe("initialState", () => {
     expect(initialState.runCrashed).toBe(false);
     expect(initialState.runSkipped).toBe(false);
     expect(initialState.runOutput).toEqual([]);
+    expect(initialState.testFailures).toEqual([]);
   });
 });
 
@@ -399,6 +400,84 @@ describe("reducer", () => {
     const prev = { ...initialState, runOutput: existingOutput };
     const state = reducer(prev, { type: Action.TEST_RESULT_RECEIVED });
     expect(state.runOutput).toBe(existingOutput);
+  });
+
+  test("TEST_RESULT_RECEIVED populates testFailures from jestJson", () => {
+    const jestJson = JSON.stringify({
+      testResults: [{
+        testFilePath: "/test.js",
+        assertionResults: [
+          {
+            status: "failed",
+            title: "handles edge case",
+            failureMessages: ["expect(received).toEqual(expected)\n\nExpected: [1]\nReceived: [2]"],
+          },
+        ],
+      }],
+    });
+    const prev = { ...initialState };
+    const state = reducer(prev, { type: Action.TEST_RESULT_RECEIVED, jestJson });
+    expect(state.testFailures).toHaveLength(1);
+    expect(state.testFailures[0].name).toBe("handles edge case");
+    expect(state.testFailures[0].expected).toBe("[1]");
+    expect(state.testFailures[0].received).toBe("[2]");
+  });
+
+  test("TEST_RESULT_RECEIVED testFailures is [] when all tests pass", () => {
+    const jestJson = JSON.stringify({
+      testResults: [{
+        testFilePath: "/test.js",
+        assertionResults: [
+          { status: "passed", title: "works", failureMessages: [] },
+        ],
+      }],
+    });
+    const prev = { ...initialState, testFailures: [{ name: "old" }] };
+    const state = reducer(prev, { type: Action.TEST_RESULT_RECEIVED, jestJson });
+    expect(state.testFailures).toEqual([]);
+  });
+
+  test("TEST_RESULT_RECEIVED testFailures is [] when jestJson is null", () => {
+    const prev = { ...initialState, testFailures: [{ name: "old" }] };
+    const state = reducer(prev, { type: Action.TEST_RESULT_RECEIVED, jestJson: null });
+    expect(state.testFailures).toEqual([]);
+  });
+
+  test("TEST_RESULT_RECEIVED replaces testFailures entirely — not appended", () => {
+    const jestJson1 = JSON.stringify({
+      testResults: [{
+        testFilePath: "/test.js",
+        assertionResults: [
+          { status: "failed", title: "fail A", failureMessages: ["error A"] },
+        ],
+      }],
+    });
+    const jestJson2 = JSON.stringify({
+      testResults: [{
+        testFilePath: "/test.js",
+        assertionResults: [
+          { status: "failed", title: "fail B", failureMessages: ["error B"] },
+        ],
+      }],
+    });
+    const state1 = reducer(initialState, { type: Action.TEST_RESULT_RECEIVED, jestJson: jestJson1 });
+    expect(state1.testFailures).toHaveLength(1);
+    expect(state1.testFailures[0].name).toBe("fail A");
+
+    const state2 = reducer(state1, { type: Action.TEST_RESULT_RECEIVED, jestJson: jestJson2 });
+    expect(state2.testFailures).toHaveLength(1);
+    expect(state2.testFailures[0].name).toBe("fail B");
+  });
+
+  test("RUN_RESULT_RECEIVED does not modify testFailures", () => {
+    const existingFailures = [{ name: "existing" }];
+    const prev = { ...initialState, testFailures: existingFailures };
+    const state = reducer(prev, {
+      type: Action.RUN_RESULT_RECEIVED,
+      stdout: "",
+      stderr: "",
+    });
+    expect(state.testFailures).toBe(existingFailures);
   });
 
   // --- RUN_TESTS ---

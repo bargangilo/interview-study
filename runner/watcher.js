@@ -13,20 +13,16 @@ import {
   writeRunHarness,
 } from "./config.js";
 
-function parseJestOutput(stdout) {
-  const testsLine = stdout.match(/Tests:.*$/m);
-  if (!testsLine) return null;
-
-  const line = testsLine[0];
-  const passMatch = line.match(/(\d+) passed/);
-  const failMatch = line.match(/(\d+) failed/);
-
-  const passed = passMatch ? parseInt(passMatch[1], 10) : 0;
-  const failed = failMatch ? parseInt(failMatch[1], 10) : 0;
-
-  if (passed === 0 && failed === 0) return null;
-
-  return { passed, total: passed + failed };
+function parseJestJson(stdout) {
+  try {
+    const parsed = JSON.parse(stdout);
+    const passed = parsed.numPassedTests || 0;
+    const failed = parsed.numFailedTests || 0;
+    if (passed === 0 && failed === 0) return null;
+    return { passed, total: passed + failed, jestJson: stdout };
+  } catch {
+    return null;
+  }
 }
 
 function parsePytestOutput(stdout) {
@@ -92,11 +88,11 @@ async function runTestSuite(problem, language, rootDir, testFilter, runnerConfig
     const testFile = testFilter
       ? path.join(rootDir, "problems", problem, "suite.test.js")
       : path.join(rootDir, "problems", problem, "sample.test.js");
-    args = ["jest", testFile, "--no-coverage", "--testPathIgnorePatterns=[]"];
+    args = ["jest", testFile, "--no-coverage", "--testPathIgnorePatterns=[]", "--json"];
     if (testFilter) {
       args.push("--testNamePattern", testFilter);
     }
-    parser = parseJestOutput;
+    parser = parseJestJson;
   } else {
     const testFile = testFilter
       ? path.join(rootDir, "problems", problem, "suite.test.py")
@@ -121,6 +117,7 @@ async function runTestSuite(problem, language, rootDir, testFilter, runnerConfig
       total: 0,
       timedOut: true,
       timeoutSeconds: runnerConfig.testTimeoutSeconds,
+      jestJson: null,
     };
   }
 
@@ -130,15 +127,20 @@ async function runTestSuite(problem, language, rootDir, testFilter, runnerConfig
       total: 0,
       crashed: true,
       exitCode: result.exitCode,
+      jestJson: null,
     };
   }
 
-  const output = result.stdout + result.stderr;
-  const parsed = parser(output);
+  const parsed = parser(language === "JavaScript" ? result.stdout : result.stdout + result.stderr);
   if (parsed) {
     return { ...parsed };
   }
-  return { passed: 0, total: 0 };
+
+  // For JS: if parser returned null, stdout was not valid JSON — treat as crash
+  if (language === "JavaScript") {
+    return { passed: 0, total: 0, crashed: true, exitCode: result.exitCode, jestJson: null };
+  }
+  return { passed: 0, total: 0, jestJson: null };
 }
 
 /**
@@ -185,7 +187,7 @@ async function runHarness(problem, language, rootDir, runnerConfig) {
  * @param {object} callbacks - UI callbacks (all optional):
  *   onRunResult({ skipped, stdout, stderr, timedOut, crashed, exitCode, ranAt })
  *   onTestStart()
- *   onTestResult({ passed, total, timestamp, partInfo, timedOut?, timeoutSeconds?, crashed?, exitCode? })
+ *   onTestResult({ passed, total, timestamp, partInfo, timedOut?, timeoutSeconds?, crashed?, exitCode?, jestJson? })
  *   onPartAdvanced({ completedPart, nextTitle, nextDescription, splitSeconds })
  *   onAllComplete({ problem })
  *   onMilestone({ warning })
