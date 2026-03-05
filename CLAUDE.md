@@ -160,6 +160,8 @@ The CLI and skills interact exclusively through the filesystem: skills write `pr
 
 When adding new fields to `problem.json`, update `docs/problem-schema.md`, `.agents/templates/problem-schema-template.json`, and the worked examples in both files atomically.
 
+The three documents in `.agents/context/` are the knowledge foundation for all agent skills. When the `problem.json` schema changes, update `problem-authoring-guide.md` atomically. When difficulty calibration anchors need updating, update `difficulty-guide.md`.
+
 ## Things to Never Do
 
 - Use a package manager other than Yarn (`npm install`, `npx`, `pnpm`)
