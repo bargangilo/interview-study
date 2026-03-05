@@ -485,6 +485,76 @@ describe("watcher process behavior", () => {
     jest.useRealTimers();
   });
 
+  test("onTestResult receives populated consoleOutput when Jest stdout contains console blocks", async () => {
+    const onTestResult = jest.fn();
+    startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
+      onTestResult,
+    });
+
+    const stdout = [
+      "  console.log",
+      "    debug value: 42",
+      "      at Object.<anonymous> (workspace/test-problem/main.js:5:9)",
+      "",
+      "Tests: 1 passed, 1 total",
+    ].join("\n");
+    mockProc.emitStdout(stdout);
+    mockProc.emit("close", 0, null);
+    await flush();
+
+    expect(onTestResult).toHaveBeenCalledWith(
+      expect.objectContaining({
+        consoleOutput: ["[log] debug value: 42"],
+      })
+    );
+  });
+
+  test("onTestResult receives [] for consoleOutput when no console output present", async () => {
+    const onTestResult = jest.fn();
+    startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
+      onTestResult,
+    });
+
+    mockProc.emitStdout("Tests: 3 passed, 3 total\n");
+    mockProc.emit("close", 0, null);
+    await flush();
+
+    expect(onTestResult).toHaveBeenCalledWith(
+      expect.objectContaining({ consoleOutput: [] })
+    );
+  });
+
+  test("onTestResult receives [] for consoleOutput on timeout", async () => {
+    jest.useFakeTimers();
+    const onTestResult = jest.fn();
+    startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
+      onTestResult,
+    });
+
+    jest.advanceTimersByTime(5000);
+    mockProc.emit("close", null, "SIGKILL");
+    await jest.advanceTimersByTimeAsync(0);
+
+    expect(onTestResult).toHaveBeenCalledWith(
+      expect.objectContaining({ timedOut: true, consoleOutput: [] })
+    );
+    jest.useRealTimers();
+  });
+
+  test("onTestResult receives [] for consoleOutput on crash", async () => {
+    const onTestResult = jest.fn();
+    startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
+      onTestResult,
+    });
+
+    mockProc.emit("close", 2, null);
+    await flush();
+
+    expect(onTestResult).toHaveBeenCalledWith(
+      expect.objectContaining({ crashed: true, consoleOutput: [] })
+    );
+  });
+
   test("unhandled error in file-change handler calls onError callback", async () => {
     const onError = jest.fn();
 

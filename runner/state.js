@@ -57,6 +57,7 @@ export const Action = {
   // Session
   TEST_RESULT_RECEIVED: "TEST_RESULT_RECEIVED",
   WATCHER_ERROR: "WATCHER_ERROR",
+  TOGGLE_LOGS: "TOGGLE_LOGS",
 
   // Navigation
   BACK: "BACK",
@@ -81,6 +82,7 @@ export const initialState = {
   clearConfig: null,
   // Session result context
   consoleOutput: [],
+  showLogs: false,
   watcherError: null,
   // Settings context
   configSchema: null,
@@ -218,6 +220,8 @@ export function reducer(state, action) {
       return { ...state, consoleOutput: action.consoleOutput || [], watcherError: null };
     case Action.WATCHER_ERROR:
       return { ...state, watcherError: action.message };
+    case Action.TOGGLE_LOGS:
+      return { ...state, showLogs: !state.showLogs };
 
     // --- Navigation ---
     case Action.BACK: {

@@ -310,6 +310,39 @@ describe("reducer", () => {
     expect(state.configValues).toBeNull();
   });
 
+  // --- Console output and logs ---
+
+  test("TOGGLE_LOGS toggles showLogs from false to true", () => {
+    const prev = { ...initialState, showLogs: false };
+    const state = reducer(prev, { type: Action.TOGGLE_LOGS });
+    expect(state.showLogs).toBe(true);
+  });
+
+  test("TOGGLE_LOGS toggles showLogs from true to false", () => {
+    const prev = { ...initialState, showLogs: true };
+    const state = reducer(prev, { type: Action.TOGGLE_LOGS });
+    expect(state.showLogs).toBe(false);
+  });
+
+  test("TEST_RESULT_RECEIVED updates consoleOutput with payload value", () => {
+    const prev = { ...initialState, consoleOutput: [] };
+    const state = reducer(prev, {
+      type: Action.TEST_RESULT_RECEIVED,
+      consoleOutput: ["[log] hello"],
+    });
+    expect(state.consoleOutput).toEqual(["[log] hello"]);
+  });
+
+  test("TEST_RESULT_RECEIVED replaces previous consoleOutput", () => {
+    const prev = { ...initialState, consoleOutput: ["[log] old"] };
+    const state = reducer(prev, {
+      type: Action.TEST_RESULT_RECEIVED,
+      consoleOutput: ["[log] new"],
+    });
+    expect(state.consoleOutput).toEqual(["[log] new"]);
+    expect(state.consoleOutput).not.toContain("[log] old");
+  });
+
   // --- Unknown action ---
 
   test("unknown action returns state unchanged", () => {

@@ -93,6 +93,10 @@ Auto-save is disabled in the practice VS Code workspace intentionally. Saves are
 
 Open the workspace file in your editor and start implementing the function. When you save the file, the CLI detects the change and runs the test suite automatically. Results appear in the summary line within a few seconds.
 
+#### Console Output
+
+Press **L** during a session to toggle the console output panel. The panel shows `console.log`, `console.error`, `console.warn`, and `console.info` calls from your solution code, captured from the most recent test run. If output exceeds 10 lines, the panel shows the last 10 with a count indicator. The panel stays open between test runs until you press **L** again to close it.
+
 ### 6. Pass Tests and Advance
 
 When all tests for the current part pass, the CLI prints a completion message and appends the next part's scaffold to your file. The test suite expands to include the new part's tests alongside the previous ones. Keep coding in the same file.

@@ -19,6 +19,7 @@ import {
   writeSessionSync,
 } from "../stats.js";
 import SummaryLine from "./SummaryLine.jsx";
+import ConsoleOutput from "./ConsoleOutput.jsx";
 
 const VSCODE_USER_SETTINGS = {
   "github.copilot.editor.enableAutoCompletions": false,
@@ -85,6 +86,8 @@ export default function SessionActive({
   const [timerDisplay, setTimerDisplay] = useState(null);
   const [messages, setMessages] = useState([]);
   const [errorMessage, setErrorMessage] = useState(null);
+  const [consoleOutput, setConsoleOutput] = useState([]);
+  const [showLogs, setShowLogs] = useState(false);
 
   const timerRef = useRef(null);
   const watcherRef = useRef(null);
@@ -215,6 +218,7 @@ export default function SessionActive({
           exitCode: result.exitCode || null,
         });
         if (result.partInfo) setPartInfo(result.partInfo);
+        setConsoleOutput(result.consoleOutput || []);
         setErrorMessage(null);
       },
       onPartAdvanced: ({ completedPart, nextTitle, nextDescription, splitSeconds }) => {
@@ -315,6 +319,8 @@ export default function SessionActive({
           timer.pause();
         }
       }
+    } else if (input === "l" || input === "L") {
+      setShowLogs((prev) => !prev);
     }
   });
 
@@ -380,6 +386,7 @@ export default function SessionActive({
           timerDisplay={timerDisplay}
         />
       )}
+      <ConsoleOutput lines={consoleOutput} visible={showLogs} />
       {errorMessage ? (
         <Text color="red">{"  "}Runner error: {errorMessage} {"\u2014"} save again to retry</Text>
       ) : null}

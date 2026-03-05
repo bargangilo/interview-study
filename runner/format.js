@@ -82,6 +82,54 @@ export function formatGlobalStats(stats) {
 }
 
 /**
+ * Parses console output from Jest stdout.
+ * Extracts console.log/error/warn/info lines from solution code only (workspace/ paths).
+ * Returns a flat array of labeled strings, one per line of output.
+ */
+export function parseConsoleOutput(stdout) {
+  if (!stdout) return [];
+  const lines = [];
+  const blockRegex = /^ {2}console\.(log|error|warn|info)\n([\s\S]*?)^ {6}at /gm;
+  let match;
+  while ((match = blockRegex.exec(stdout)) !== null) {
+    const method = match[1];
+    const body = match[2];
+    // Check the "at" line to ensure it's from workspace/
+    const atLineMatch = stdout.slice(match.index).match(/at .+?\((.+?)\)/);
+    if (!atLineMatch || !atLineMatch[1].includes("workspace/")) continue;
+    const label = `[${method}]`;
+    for (const line of body.split("\n")) {
+      const trimmed = line.replace(/^ {4}/, "");
+      if (trimmed.length > 0) {
+        lines.push(`${label} ${trimmed}`);
+      }
+    }
+  }
+  return lines;
+}
+
+/**
+ * Parses console output from pytest stdout.
+ * Extracts lines from "Captured stdout call" sections.
+ * Returns a flat array of plain strings.
+ */
+export function parsePytestConsoleOutput(stdout) {
+  if (!stdout) return [];
+  const lines = [];
+  const sectionRegex = /- Captured stdout call -+\n([\s\S]*?)(?=\n-{3,}|\n={3,}|$)/g;
+  let match;
+  while ((match = sectionRegex.exec(stdout)) !== null) {
+    const body = match[1];
+    for (const line of body.split("\n")) {
+      if (line.length > 0) {
+        lines.push(line);
+      }
+    }
+  }
+  return lines;
+}
+
+/**
  * Formats per-problem stats as a display string.
  */
 export function formatProblemStats(problemName, stats) {

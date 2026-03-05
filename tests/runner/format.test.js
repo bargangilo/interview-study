@@ -4,6 +4,8 @@ import {
   formatTimerSegment,
   formatGlobalStats,
   formatProblemStats,
+  parseConsoleOutput,
+  parsePytestConsoleOutput,
 } from "../../runner/format.js";
 
 // Strip ANSI escape codes for content assertions
@@ -171,6 +173,204 @@ describe("formatProblemStats", () => {
     expect(output).toContain("Best Part Splits");
     expect(output).toContain("Part 1");
     expect(output).toContain("Part 2");
+  });
+});
+
+// --- Console output parsing (Jest) ---
+
+describe("parseConsoleOutput", () => {
+  test("returns [] for empty string input", () => {
+    expect(parseConsoleOutput("")).toEqual([]);
+  });
+
+  test("returns [] for null/undefined input", () => {
+    expect(parseConsoleOutput(null)).toEqual([]);
+    expect(parseConsoleOutput(undefined)).toEqual([]);
+  });
+
+  test("returns [] for Jest output with no console blocks", () => {
+    const stdout = "PASS problems/test/suite.test.js\nTests: 3 passed, 3 total\n";
+    expect(parseConsoleOutput(stdout)).toEqual([]);
+  });
+
+  test("parses a single console.log line correctly", () => {
+    const stdout = [
+      "  console.log",
+      "    the value is 42",
+      "      at Object.<anonymous> (workspace/test-problem/main.js:5:9)",
+      "",
+      "Tests: 1 passed, 1 total",
+    ].join("\n");
+    expect(parseConsoleOutput(stdout)).toEqual(["[log] the value is 42"]);
+  });
+
+  test("parses multiple console.log calls correctly", () => {
+    const stdout = [
+      "  console.log",
+      "    first line",
+      "      at Object.<anonymous> (workspace/test-problem/main.js:5:9)",
+      "",
+      "  console.log",
+      "    second line",
+      "      at Object.<anonymous> (workspace/test-problem/main.js:8:9)",
+      "",
+      "Tests: 1 passed, 1 total",
+    ].join("\n");
+    expect(parseConsoleOutput(stdout)).toEqual([
+      "[log] first line",
+      "[log] second line",
+    ]);
+  });
+
+  test("prefixes [error] for console.error blocks", () => {
+    const stdout = [
+      "  console.error",
+      "    something broke",
+      "      at Object.<anonymous> (workspace/test-problem/main.js:3:9)",
+      "",
+      "Tests: 1 passed, 1 total",
+    ].join("\n");
+    expect(parseConsoleOutput(stdout)).toEqual(["[error] something broke"]);
+  });
+
+  test("prefixes [warn] for console.warn blocks", () => {
+    const stdout = [
+      "  console.warn",
+      "    be careful",
+      "      at Object.<anonymous> (workspace/test-problem/main.js:3:9)",
+      "",
+      "Tests: 1 passed, 1 total",
+    ].join("\n");
+    expect(parseConsoleOutput(stdout)).toEqual(["[warn] be careful"]);
+  });
+
+  test("handles multi-line console output", () => {
+    const stdout = [
+      "  console.log",
+      "    { a: 1,",
+      "      b: 2 }",
+      "      at Object.<anonymous> (workspace/test-problem/main.js:5:9)",
+      "",
+      "Tests: 1 passed, 1 total",
+    ].join("\n");
+    const result = parseConsoleOutput(stdout);
+    expect(result).toEqual(["[log] { a: 1,", "[log]   b: 2 }"]);
+  });
+
+  test("strips leading whitespace from message lines", () => {
+    const stdout = [
+      "  console.log",
+      "    hello world",
+      "      at Object.<anonymous> (workspace/test-problem/main.js:5:9)",
+      "",
+      "Tests: 1 passed, 1 total",
+    ].join("\n");
+    expect(parseConsoleOutput(stdout)).toEqual(["[log] hello world"]);
+  });
+
+  test("does not include at Object lines in output", () => {
+    const stdout = [
+      "  console.log",
+      "    test output",
+      "      at Object.<anonymous> (workspace/test-problem/main.js:5:9)",
+      "",
+      "Tests: 1 passed, 1 total",
+    ].join("\n");
+    const result = parseConsoleOutput(stdout);
+    expect(result.some((l) => l.includes("at Object"))).toBe(false);
+  });
+
+  test("handles mixed console methods in one stdout string", () => {
+    const stdout = [
+      "  console.log",
+      "    log line",
+      "      at Object.<anonymous> (workspace/test-problem/main.js:2:9)",
+      "",
+      "  console.error",
+      "    error line",
+      "      at Object.<anonymous> (workspace/test-problem/main.js:3:9)",
+      "",
+      "  console.warn",
+      "    warn line",
+      "      at Object.<anonymous> (workspace/test-problem/main.js:4:9)",
+      "",
+      "  console.info",
+      "    info line",
+      "      at Object.<anonymous> (workspace/test-problem/main.js:5:9)",
+      "",
+      "Tests: 1 passed, 1 total",
+    ].join("\n");
+    expect(parseConsoleOutput(stdout)).toEqual([
+      "[log] log line",
+      "[error] error line",
+      "[warn] warn line",
+      "[info] info line",
+    ]);
+  });
+
+  test("ignores console blocks from non-workspace paths", () => {
+    const stdout = [
+      "  console.log",
+      "    internal jest message",
+      "      at Object.<anonymous> (node_modules/jest-runner/lib/index.js:5:9)",
+      "",
+      "  console.log",
+      "    user output",
+      "      at Object.<anonymous> (workspace/test-problem/main.js:5:9)",
+      "",
+      "Tests: 1 passed, 1 total",
+    ].join("\n");
+    expect(parseConsoleOutput(stdout)).toEqual(["[log] user output"]);
+  });
+});
+
+// --- Console output parsing (pytest) ---
+
+describe("parsePytestConsoleOutput", () => {
+  test("returns [] for empty string", () => {
+    expect(parsePytestConsoleOutput("")).toEqual([]);
+  });
+
+  test("returns [] for null/undefined input", () => {
+    expect(parsePytestConsoleOutput(null)).toEqual([]);
+    expect(parsePytestConsoleOutput(undefined)).toEqual([]);
+  });
+
+  test("returns [] for pytest output with no captured stdout section", () => {
+    const stdout = "PASSED test_sample.py::test_basic\n1 passed in 0.5s\n";
+    expect(parsePytestConsoleOutput(stdout)).toEqual([]);
+  });
+
+  test("extracts lines from Captured stdout call section", () => {
+    const stdout = [
+      "FAILED test_sample.py::test_basic",
+      "--- Captured stdout call ---",
+      "hello from print",
+      "another line",
+      "--- Captured stderr call ---",
+      "1 failed in 0.5s",
+    ].join("\n");
+    expect(parsePytestConsoleOutput(stdout)).toEqual([
+      "hello from print",
+      "another line",
+    ]);
+  });
+
+  test("handles multiple captured sections", () => {
+    const stdout = [
+      "FAILED test_sample.py::test_one",
+      "--- Captured stdout call ---",
+      "output from test one",
+      "=== FAILURES ===",
+      "FAILED test_sample.py::test_two",
+      "--- Captured stdout call ---",
+      "output from test two",
+      "=== short test summary ===",
+    ].join("\n");
+    expect(parsePytestConsoleOutput(stdout)).toEqual([
+      "output from test one",
+      "output from test two",
+    ]);
   });
 });
 

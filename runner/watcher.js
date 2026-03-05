@@ -1,7 +1,7 @@
 import path from "path";
 import { spawn } from "child_process";
 import chokidar from "chokidar";
-import { getMilestoneWarning } from "./format.js";
+import { getMilestoneWarning, parseConsoleOutput, parsePytestConsoleOutput } from "./format.js";
 import {
   appendPartScaffold,
   buildTestFilter,
@@ -114,11 +114,14 @@ function runTests(problem, language, rootDir, testFilter, runnerConfig) {
       }
 
       // Exit code 0 (all pass) or 1 (some fail) — parse results
+      const consoleOutput = language === "JavaScript"
+        ? parseConsoleOutput(output)
+        : parsePytestConsoleOutput(output);
       const result = parser(output);
       if (result) {
-        resolve({ ...result, consoleOutput: [] });
+        resolve({ ...result, consoleOutput });
       } else {
-        resolve({ passed: 0, total: 0, consoleOutput: [] });
+        resolve({ passed: 0, total: 0, consoleOutput });
       }
     });
 

@@ -42,7 +42,7 @@ The CLI (`runner/`) is a Node.js ESM app using React and Ink for terminal UI. It
 - `runner/index.js` — Minimal entry point. Renders `<App />` via Ink's `render()` and waits for exit.
 - `runner/app.jsx` — Root React component. Uses `useReducer` with the state machine from `state.js`. Switches on `state.screen` to render the appropriate screen component. Loads problem data and passes it as props.
 - `runner/state.js` — Application state machine. Exports `Screen` constants (16 screens), `Action` constants, `initialState`, and a pure `reducer(state, action)` function. No side effects.
-- `runner/format.js` — Pure string-returning formatters. Status badges, timer segment, milestone warnings, global/problem stats formatting. No I/O.
+- `runner/format.js` — Pure string-returning formatters. Status badges, timer segment, milestone warnings, global/problem stats formatting, console output parsing. No I/O.
 - `runner/watcher.js` — File watcher (`chokidar`). Spawns `yarn jest` or `pytest` on save, parses pass/fail counts, manages multi-part state and part advancement. Uses a `callbacks` parameter for UI updates — no direct console output.
 - `runner/config.js` — Problem config loading and validation. Workspace path management, scaffold writes, test filter building, resume state inference from file delimiters, workspace status detection, completion markers.
 - `runner/timer.js` — Timer state machine. Stopwatch and countdown modes, pause/resume, wall-clock-based elapsed math (never increments a counter), milestone tracking, serialization for session persistence.
@@ -54,6 +54,7 @@ Screen components live in `runner/components/`. Each maps to a `Screen` constant
 
 - `MainMenu.jsx`, `ProblemSelect.jsx`, `LanguageSelect.jsx`, `CountdownPrompt.jsx`, `ResumeOrRestart.jsx`, `SessionActive.jsx`, `ProblemList.jsx`, `ProblemListDetail.jsx`, `StatsOverview.jsx`, `StatsDetail.jsx`, `ClearProblemSelect.jsx`, `ClearConfirm.jsx`, `ExportSkills.jsx`, `SettingsMenu.jsx`, `SettingsSection.jsx`, `SettingsEditField.jsx`
 - `SummaryLine.jsx` — Test results + timer display line
+- `ConsoleOutput.jsx` — Console output panel, shows solution `console.log` output from last test run, toggled by L keypress
 - `Header.jsx` — Reusable title + separator
 
 Interactive components use `Select`, `TextInput`, and `MultiSelect` from `@inkjs/ui`. Key handlers use Ink's `useInput`. Append-only messages (part completions, milestones) use Ink's `<Static>`.
