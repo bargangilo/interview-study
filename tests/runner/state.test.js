@@ -209,6 +209,107 @@ describe("reducer", () => {
     expect(state.screen).toBe(Screen.MAIN_MENU);
   });
 
+  // --- Settings ---
+
+  test("OPEN_SETTINGS transitions to SETTINGS_MENU with schema and config", () => {
+    const schema = [{ key: "topics" }];
+    const config = { version: 1 };
+    const state = reducer(initialState, {
+      type: Action.OPEN_SETTINGS,
+      configSchema: schema,
+      configValues: config,
+    });
+    expect(state.screen).toBe(Screen.SETTINGS_MENU);
+    expect(state.configSchema).toEqual(schema);
+    expect(state.configValues).toEqual(config);
+    expect(state.selectedSection).toBeNull();
+    expect(state.selectedField).toBeNull();
+  });
+
+  test("SELECT_SETTINGS_SECTION transitions to SETTINGS_SECTION with section key", () => {
+    const prev = {
+      ...initialState,
+      screen: Screen.SETTINGS_MENU,
+      configSchema: [],
+      configValues: {},
+    };
+    const state = reducer(prev, {
+      type: Action.SELECT_SETTINGS_SECTION,
+      sectionKey: "difficulty",
+    });
+    expect(state.screen).toBe(Screen.SETTINGS_SECTION);
+    expect(state.selectedSection).toBe("difficulty");
+    expect(state.selectedField).toBeNull();
+  });
+
+  test("SELECT_SETTINGS_FIELD transitions to SETTINGS_EDIT_FIELD with field key", () => {
+    const prev = {
+      ...initialState,
+      screen: Screen.SETTINGS_SECTION,
+      selectedSection: "difficulty",
+    };
+    const state = reducer(prev, {
+      type: Action.SELECT_SETTINGS_FIELD,
+      fieldKey: "difficulty.algorithmComplexity",
+    });
+    expect(state.screen).toBe(Screen.SETTINGS_EDIT_FIELD);
+    expect(state.selectedField).toBe("difficulty.algorithmComplexity");
+  });
+
+  test("SETTINGS_FIELD_SAVED returns to SETTINGS_SECTION and updates configValues", () => {
+    const prev = {
+      ...initialState,
+      screen: Screen.SETTINGS_EDIT_FIELD,
+      selectedSection: "difficulty",
+      selectedField: "difficulty.algorithmComplexity",
+      configValues: { difficulty: { algorithmComplexity: [1, 3] } },
+    };
+    const newConfig = { difficulty: { algorithmComplexity: [2, 4] } };
+    const state = reducer(prev, {
+      type: Action.SETTINGS_FIELD_SAVED,
+      configValues: newConfig,
+    });
+    expect(state.screen).toBe(Screen.SETTINGS_SECTION);
+    expect(state.configValues).toEqual(newConfig);
+    expect(state.selectedField).toBeNull();
+  });
+
+  test("SETTINGS_BACK from SETTINGS_EDIT_FIELD returns to SETTINGS_SECTION", () => {
+    const prev = {
+      ...initialState,
+      screen: Screen.SETTINGS_EDIT_FIELD,
+      selectedSection: "difficulty",
+      selectedField: "difficulty.algorithmComplexity",
+    };
+    const state = reducer(prev, { type: Action.SETTINGS_BACK });
+    expect(state.screen).toBe(Screen.SETTINGS_SECTION);
+    expect(state.selectedField).toBeNull();
+  });
+
+  test("SETTINGS_BACK from SETTINGS_SECTION returns to SETTINGS_MENU", () => {
+    const prev = {
+      ...initialState,
+      screen: Screen.SETTINGS_SECTION,
+      selectedSection: "difficulty",
+    };
+    const state = reducer(prev, { type: Action.SETTINGS_BACK });
+    expect(state.screen).toBe(Screen.SETTINGS_MENU);
+    expect(state.selectedSection).toBeNull();
+  });
+
+  test("SETTINGS_BACK from SETTINGS_MENU returns to MAIN_MENU", () => {
+    const prev = {
+      ...initialState,
+      screen: Screen.SETTINGS_MENU,
+      configSchema: [],
+      configValues: {},
+    };
+    const state = reducer(prev, { type: Action.SETTINGS_BACK });
+    expect(state.screen).toBe(Screen.MAIN_MENU);
+    expect(state.configSchema).toBeNull();
+    expect(state.configValues).toBeNull();
+  });
+
   // --- Unknown action ---
 
   test("unknown action returns state unchanged", () => {

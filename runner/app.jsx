@@ -9,6 +9,9 @@ import {
   hasWorkspaceDir,
   hasWorkspaceFile,
   inferCurrentPart,
+  loadConfigSchema,
+  readUserConfig,
+  writeUserConfig,
 } from "./config.js";
 import { formatStatusBadge } from "./format.js";
 import { readAllSessions, loadSession } from "./stats.js";
@@ -26,6 +29,9 @@ import StatsDetail from "./components/StatsDetail.jsx";
 import ClearProblemSelect from "./components/ClearProblemSelect.jsx";
 import ClearConfirm from "./components/ClearConfirm.jsx";
 import ExportSkills from "./components/ExportSkills.jsx";
+import SettingsMenu from "./components/SettingsMenu.jsx";
+import SettingsSection from "./components/SettingsSection.jsx";
+import SettingsEditField from "./components/SettingsEditField.jsx";
 
 function detectProblems(rootDir) {
   const problemsDir = path.join(rootDir, "problems");
@@ -69,9 +75,20 @@ export default function App({ rootDir }) {
   // Wrap dispatch to intercept certain actions for side-effect enrichment
   const enrichedDispatch = useCallback((action) => {
     if (action.type === Action.SELECT_LANGUAGE) {
-      // Check if there's an existing session to determine resume/restart flow
       const hasExisting = hasWorkspaceFile(state.selectedProblem, action.language, rootDir);
       dispatch({ ...action, hasExistingSession: hasExisting });
+      return;
+    }
+    if (action.type === Action.OPEN_SETTINGS) {
+      const configSchema = loadConfigSchema(rootDir);
+      const configValues = readUserConfig(rootDir);
+      dispatch({ ...action, configSchema, configValues });
+      return;
+    }
+    if (action.type === Action.SETTINGS_FIELD_SAVED) {
+      writeUserConfig(action.configValues, rootDir);
+      const freshConfig = readUserConfig(rootDir);
+      dispatch({ ...action, configValues: freshConfig });
       return;
     }
     dispatch(action);
@@ -206,6 +223,36 @@ export default function App({ rootDir }) {
 
     case Screen.EXPORT_SKILLS:
       return <ExportSkills dispatch={enrichedDispatch} rootDir={rootDir} />;
+
+    case Screen.SETTINGS_MENU:
+      return (
+        <SettingsMenu
+          configSchema={state.configSchema}
+          configValues={state.configValues}
+          dispatch={enrichedDispatch}
+        />
+      );
+
+    case Screen.SETTINGS_SECTION:
+      return (
+        <SettingsSection
+          configSchema={state.configSchema}
+          configValues={state.configValues}
+          selectedSection={state.selectedSection}
+          dispatch={enrichedDispatch}
+        />
+      );
+
+    case Screen.SETTINGS_EDIT_FIELD:
+      return (
+        <SettingsEditField
+          configSchema={state.configSchema}
+          configValues={state.configValues}
+          selectedSection={state.selectedSection}
+          selectedField={state.selectedField}
+          dispatch={enrichedDispatch}
+        />
+      );
 
     default:
       return <MainMenu dispatch={enrichedDispatch} />;

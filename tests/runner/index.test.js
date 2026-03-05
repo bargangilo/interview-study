@@ -14,6 +14,9 @@ import {
   clearWorkspaceDir,
   writeCompletionMarker,
   getWorkspaceStatus,
+  loadConfigSchema,
+  readUserConfig,
+  writeUserConfig,
 } from "../../runner/config.js";
 
 import sampleConfig from "./fixtures/sample-problem.json";
@@ -474,20 +477,22 @@ describe("getWorkspaceStatus", () => {
 // --- Main menu structure ---
 
 describe("main menu structure (structural verification)", () => {
-  test("menu has five choices: start, list, stats, clear, exit", () => {
+  test("menu has six choices: start, list, stats, settings, clear, exit", () => {
     const choices = [
       { name: "Start a Problem", value: "start" },
       { name: "Problem List", value: "list" },
       { name: "Stats", value: "stats" },
+      { name: "Settings", value: "settings" },
       { name: "Clear a Problem", value: "clear" },
       { name: "Exit", value: "exit" },
     ];
 
-    expect(choices).toHaveLength(5);
+    expect(choices).toHaveLength(6);
     expect(choices.map((c) => c.value)).toEqual([
       "start",
       "list",
       "stats",
+      "settings",
       "clear",
       "exit",
     ]);
@@ -509,6 +514,80 @@ describe("clear confirmation structure (structural verification)", () => {
 });
 
 // --- truncate ---
+
+// --- loadConfigSchema ---
+
+describe("loadConfigSchema", () => {
+  test("returns parsed schema when file exists", () => {
+    const schema = [{ key: "topics", label: "Topics", fields: [] }];
+    fs.existsSync.mockReturnValue(true);
+    fs.readFileSync.mockReturnValue(JSON.stringify(schema));
+
+    const result = loadConfigSchema("/fake");
+    expect(result).toEqual(schema);
+    expect(fs.existsSync).toHaveBeenCalledWith(
+      path.join("/fake", ".agents", "config-schema.json")
+    );
+  });
+
+  test("returns null when file does not exist", () => {
+    fs.existsSync.mockReturnValue(false);
+
+    const result = loadConfigSchema("/fake");
+    expect(result).toBeNull();
+  });
+});
+
+// --- readUserConfig ---
+
+describe("readUserConfig", () => {
+  test("returns parsed config when file exists", () => {
+    const config = { version: 1, topics: { include: ["arrays"] } };
+    fs.existsSync.mockReturnValue(true);
+    fs.readFileSync.mockReturnValue(JSON.stringify(config));
+
+    const result = readUserConfig("/fake");
+    expect(result).toEqual(config);
+    expect(fs.existsSync).toHaveBeenCalledWith(
+      path.join("/fake", "config.json")
+    );
+  });
+
+  test("returns null when file does not exist", () => {
+    fs.existsSync.mockReturnValue(false);
+
+    const result = readUserConfig("/fake");
+    expect(result).toBeNull();
+  });
+});
+
+// --- writeUserConfig ---
+
+describe("writeUserConfig", () => {
+  test("sets updatedAt timestamp before writing", () => {
+    fs.writeFileSync.mockImplementation(() => {});
+    const config = { version: 1, topics: { include: ["arrays"] } };
+
+    const before = new Date().toISOString();
+    writeUserConfig(config, "/fake");
+
+    expect(fs.writeFileSync).toHaveBeenCalledTimes(1);
+    const writtenPath = fs.writeFileSync.mock.calls[0][0];
+    const writtenContent = JSON.parse(fs.writeFileSync.mock.calls[0][1]);
+    expect(writtenPath).toBe(path.join("/fake", "config.json"));
+    expect(writtenContent.updatedAt).toBeDefined();
+    expect(new Date(writtenContent.updatedAt).toISOString()).toBe(writtenContent.updatedAt);
+    expect(writtenContent.version).toBe(1);
+  });
+
+  test("throws on write failure", () => {
+    fs.writeFileSync.mockImplementation(() => {
+      throw new Error("EACCES: permission denied");
+    });
+
+    expect(() => writeUserConfig({}, "/fake")).toThrow("EACCES");
+  });
+});
 
 describe("truncate function behavior (structural verification)", () => {
   test("returns empty string for falsy input", () => {

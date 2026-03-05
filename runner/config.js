@@ -1,6 +1,9 @@
 import path from "path";
 import fs from "fs";
 
+const CONFIG_SCHEMA_PATH = ".agents/config-schema.json";
+const USER_CONFIG_PATH = "config.json";
+
 const COMPLETION_MARKER_JS = "\n// ---- COMPLETE ----\n";
 const COMPLETION_MARKER_PY = "\n# ---- COMPLETE ----\n";
 
@@ -177,6 +180,36 @@ export function writeCompletionMarker(problemName, language, rootDir) {
   const marker =
     language === "JavaScript" ? COMPLETION_MARKER_JS : COMPLETION_MARKER_PY;
   fs.appendFileSync(filePath, marker, "utf8");
+}
+
+/**
+ * Reads .agents/config-schema.json from repo root.
+ * Returns parsed schema array, or null if file does not exist.
+ */
+export function loadConfigSchema(rootDir) {
+  const schemaPath = path.join(rootDir, CONFIG_SCHEMA_PATH);
+  if (!fs.existsSync(schemaPath)) return null;
+  return JSON.parse(fs.readFileSync(schemaPath, "utf8"));
+}
+
+/**
+ * Reads config.json from repo root.
+ * Returns parsed config object, or null if file does not exist.
+ */
+export function readUserConfig(rootDir) {
+  const configPath = path.join(rootDir, USER_CONFIG_PATH);
+  if (!fs.existsSync(configPath)) return null;
+  return JSON.parse(fs.readFileSync(configPath, "utf8"));
+}
+
+/**
+ * Writes config.json to repo root.
+ * Sets updatedAt to current ISO timestamp before writing.
+ */
+export function writeUserConfig(configObject, rootDir) {
+  const configPath = path.join(rootDir, USER_CONFIG_PATH);
+  const updated = { ...configObject, updatedAt: new Date().toISOString() };
+  fs.writeFileSync(configPath, JSON.stringify(updated, null, 2) + "\n", "utf8");
 }
 
 /**

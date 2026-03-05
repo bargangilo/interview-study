@@ -41,7 +41,7 @@ The CLI (`runner/`) is a Node.js ESM app using React and Ink for terminal UI. It
 
 - `runner/index.js` — Minimal entry point. Renders `<App />` via Ink's `render()` and waits for exit.
 - `runner/app.jsx` — Root React component. Uses `useReducer` with the state machine from `state.js`. Switches on `state.screen` to render the appropriate screen component. Loads problem data and passes it as props.
-- `runner/state.js` — Application state machine. Exports `Screen` constants (13 screens), `Action` constants, `initialState`, and a pure `reducer(state, action)` function. No side effects.
+- `runner/state.js` — Application state machine. Exports `Screen` constants (16 screens), `Action` constants, `initialState`, and a pure `reducer(state, action)` function. No side effects.
 - `runner/format.js` — Pure string-returning formatters. Status badges, timer segment, milestone warnings, global/problem stats formatting. No I/O.
 - `runner/watcher.js` — File watcher (`chokidar`). Spawns `yarn jest` or `pytest` on save, parses pass/fail counts, manages multi-part state and part advancement. Uses a `callbacks` parameter for UI updates — no direct console output.
 - `runner/config.js` — Problem config loading and validation. Workspace path management, scaffold writes, test filter building, resume state inference from file delimiters, workspace status detection, completion markers.
@@ -52,11 +52,11 @@ The CLI (`runner/`) is a Node.js ESM app using React and Ink for terminal UI. It
 
 Screen components live in `runner/components/`. Each maps to a `Screen` constant and receives `dispatch` plus relevant state slices as props:
 
-- `MainMenu.jsx`, `ProblemSelect.jsx`, `LanguageSelect.jsx`, `CountdownPrompt.jsx`, `ResumeOrRestart.jsx`, `SessionActive.jsx`, `ProblemList.jsx`, `ProblemListDetail.jsx`, `StatsOverview.jsx`, `StatsDetail.jsx`, `ClearProblemSelect.jsx`, `ClearConfirm.jsx`, `ExportSkills.jsx`
+- `MainMenu.jsx`, `ProblemSelect.jsx`, `LanguageSelect.jsx`, `CountdownPrompt.jsx`, `ResumeOrRestart.jsx`, `SessionActive.jsx`, `ProblemList.jsx`, `ProblemListDetail.jsx`, `StatsOverview.jsx`, `StatsDetail.jsx`, `ClearProblemSelect.jsx`, `ClearConfirm.jsx`, `ExportSkills.jsx`, `SettingsMenu.jsx`, `SettingsSection.jsx`, `SettingsEditField.jsx`
 - `SummaryLine.jsx` — Test results + timer display line
 - `Header.jsx` — Reusable title + separator
 
-Interactive components use `Select` and `TextInput` from `@inkjs/ui`. Key handlers use Ink's `useInput`. Append-only messages (part completions, milestones) use Ink's `<Static>`.
+Interactive components use `Select`, `TextInput`, and `MultiSelect` from `@inkjs/ui`. Key handlers use Ink's `useInput`. Append-only messages (part completions, milestones) use Ink's `<Static>`.
 
 ### Key Paths
 
@@ -179,7 +179,7 @@ The three documents in `.agents/context/` are the knowledge foundation for all a
 
 Generation behavior is controlled by two independent config fields: `surpriseMode` (controls whether parameters are randomized or asked interactively) and `hideProblemDetails` (controls what information is shown to the user during and after generation). When `hideProblemDetails.hideWriteOutput` is true, agent skills must route all problem file writes through `.agents/scripts/write-problem.js` rather than using direct file write tools — this prevents file contents from appearing in the terminal during generation.
 
-`.agents/config-schema.json` is the single source of truth for all config option definitions. When adding a new field to `config.json`, add it to `config-schema.json` first — include label, description, type, options, default, and validation rules. The `setup-config` skill reads from this file to present fields to the user.
+`.agents/config-schema.json` is the single source of truth for all config option definitions. When adding a new field to `config.json`, add it to `config-schema.json` first — include label, description, type, options, default, and validation rules. The `setup-config` skill reads from this file to present fields to the user. The CLI settings menu reads `.agents/config-schema.json` at runtime — it has no hardcoded knowledge of config fields. New config options added to the schema automatically appear in the settings menu.
 
 The randomization scripts in `.agents/scripts/` have unit tests in `tests/scripts/` — run `yarn test` to verify them. If `config.json` schema changes, update both scripts and their tests.
 

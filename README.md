@@ -91,6 +91,10 @@ Two modes: **stopwatch** counts up with no limit; **countdown** counts down from
 
 A read-only browser for all available problems. Select any problem to see its full details — part titles, descriptions, and your current status. No session is started.
 
+### :gear: Settings
+
+A built-in settings editor for `config.json`, driven entirely by `.agents/config-schema.json`. Browse sections (topics, difficulty, style, language, parts, etc.), view current values, and edit any field with immediate save on confirmation. The settings menu reads field definitions from the schema at runtime — new config options added to the schema automatically appear here. Works without an existing `config.json` (uses schema defaults) and without a schema file (displays a message and returns to the menu).
+
 ### :wastebasket: Clear a Problem
 
 Removes your workspace directory for a problem, deleting the solution file and session data. Only problems with existing workspaces appear. A confirmation prompt (defaulting to No) prevents accidental clears.

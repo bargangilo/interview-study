@@ -8,6 +8,7 @@ export default function MainMenu({ dispatch }) {
     { label: "Start a Problem", value: "start" },
     { label: "Problem List", value: "list" },
     { label: "Stats", value: "stats" },
+    { label: "Settings", value: "settings" },
     { label: "Clear a Problem", value: "clear" },
     { label: "Export Skills", value: "export_skills" },
     { label: "Exit", value: "exit" },
@@ -29,6 +30,9 @@ export default function MainMenu({ dispatch }) {
               break;
             case "stats":
               dispatch({ type: Action.GO_STATS });
+              break;
+            case "settings":
+              dispatch({ type: Action.OPEN_SETTINGS });
               break;
             case "clear":
               dispatch({ type: Action.GO_CLEAR });

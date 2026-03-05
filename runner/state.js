@@ -17,6 +17,9 @@ export const Screen = {
   CLEAR_PROBLEM_SELECT: "CLEAR_PROBLEM_SELECT",
   CLEAR_CONFIRM: "CLEAR_CONFIRM",
   EXPORT_SKILLS: "EXPORT_SKILLS",
+  SETTINGS_MENU: "SETTINGS_MENU",
+  SETTINGS_SECTION: "SETTINGS_SECTION",
+  SETTINGS_EDIT_FIELD: "SETTINGS_EDIT_FIELD",
 };
 
 export const Action = {
@@ -44,6 +47,13 @@ export const Action = {
   SELECT_CLEAR_PROBLEM: "SELECT_CLEAR_PROBLEM",
   CONFIRM_CLEAR: "CONFIRM_CLEAR",
 
+  // Settings
+  OPEN_SETTINGS: "OPEN_SETTINGS",
+  SELECT_SETTINGS_SECTION: "SELECT_SETTINGS_SECTION",
+  SELECT_SETTINGS_FIELD: "SELECT_SETTINGS_FIELD",
+  SETTINGS_FIELD_SAVED: "SETTINGS_FIELD_SAVED",
+  SETTINGS_BACK: "SETTINGS_BACK",
+
   // Navigation
   BACK: "BACK",
 };
@@ -65,6 +75,11 @@ export const initialState = {
   statsSession: null,
   clearProblem: null,
   clearConfig: null,
+  // Settings context
+  configSchema: null,
+  configValues: null,
+  selectedSection: null,
+  selectedField: null,
 };
 
 export function reducer(state, action) {
@@ -80,6 +95,15 @@ export function reducer(state, action) {
       return { ...state, screen: Screen.CLEAR_PROBLEM_SELECT };
     case Action.GO_EXPORT_SKILLS:
       return { ...state, screen: Screen.EXPORT_SKILLS };
+    case Action.OPEN_SETTINGS:
+      return {
+        ...state,
+        screen: Screen.SETTINGS_MENU,
+        configSchema: action.configSchema,
+        configValues: action.configValues,
+        selectedSection: null,
+        selectedField: null,
+      };
 
     // --- Start problem flow ---
     case Action.SELECT_PROBLEM:
@@ -151,6 +175,37 @@ export function reducer(state, action) {
         clearConfig: null,
       };
 
+    // --- Settings ---
+    case Action.SELECT_SETTINGS_SECTION:
+      return {
+        ...state,
+        screen: Screen.SETTINGS_SECTION,
+        selectedSection: action.sectionKey,
+        selectedField: null,
+      };
+    case Action.SELECT_SETTINGS_FIELD:
+      return {
+        ...state,
+        screen: Screen.SETTINGS_EDIT_FIELD,
+        selectedField: action.fieldKey,
+      };
+    case Action.SETTINGS_FIELD_SAVED:
+      return {
+        ...state,
+        screen: Screen.SETTINGS_SECTION,
+        configValues: action.configValues,
+        selectedField: null,
+      };
+    case Action.SETTINGS_BACK: {
+      if (state.screen === Screen.SETTINGS_EDIT_FIELD) {
+        return { ...state, screen: Screen.SETTINGS_SECTION, selectedField: null };
+      }
+      if (state.screen === Screen.SETTINGS_SECTION) {
+        return { ...state, screen: Screen.SETTINGS_MENU, selectedSection: null };
+      }
+      return { ...state, screen: Screen.MAIN_MENU, configSchema: null, configValues: null };
+    }
+
     // --- Navigation ---
     case Action.BACK: {
       const backMap = {
@@ -165,6 +220,9 @@ export function reducer(state, action) {
         [Screen.CLEAR_PROBLEM_SELECT]: Screen.MAIN_MENU,
         [Screen.CLEAR_CONFIRM]: Screen.CLEAR_PROBLEM_SELECT,
         [Screen.EXPORT_SKILLS]: Screen.MAIN_MENU,
+        [Screen.SETTINGS_MENU]: Screen.MAIN_MENU,
+        [Screen.SETTINGS_SECTION]: Screen.SETTINGS_MENU,
+        [Screen.SETTINGS_EDIT_FIELD]: Screen.SETTINGS_SECTION,
       };
       const target = backMap[state.screen] || Screen.MAIN_MENU;
       return { ...state, screen: target };
