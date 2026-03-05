@@ -104,22 +104,24 @@ If a feature is complex enough to affect the tool's mental model, it warrants a 
 
 ## Testing
 
-Runner unit tests live in `tests/runner/` and cover config loading, workspace management, UI output, watcher logic, timer math, and stats computation.
+Runner unit tests live in `tests/runner/` and cover config loading, workspace management, UI output, watcher logic, timer math, and stats computation. Script tests live in `tests/scripts/` and cover the agent randomization utilities.
 
 ### Test Files
 
 | File | Covers |
 |---|---|
-| `index.test.js` | Config loading, workspace management, menu structure |
-| `watcher.test.js` | Test filter building, part progression, scaffold appending |
-| `format.test.js` | Pure formatters: status badges, timer segment, milestone warnings, stats formatting |
-| `state.test.js` | State machine: screen transitions, back navigation, action handling |
-| `timer.test.js` | Timer math, pause/resume, milestones, serialization |
-| `stats.test.js` | Stats computation, session I/O, streak, time formatting |
+| `tests/runner/index.test.js` | Config loading, workspace management, menu structure |
+| `tests/runner/watcher.test.js` | Test filter building, part progression, scaffold appending |
+| `tests/runner/format.test.js` | Pure formatters: status badges, timer segment, milestone warnings, stats formatting |
+| `tests/runner/state.test.js` | State machine: screen transitions, back navigation, action handling |
+| `tests/runner/timer.test.js` | Timer math, pause/resume, milestones, serialization |
+| `tests/runner/stats.test.js` | Stats computation, session I/O, streak, time formatting |
+| `tests/scripts/topic-weights.test.js` | Topic weight computation, avoid list, recency penalties, normalization |
+| `tests/scripts/randomize-params.test.js` | CLI output shape, reproducibility, error handling, constraint validation |
 
 ### Patterns
 
-All test files mock `fs`, `child_process`, and `chokidar` — no real filesystem or process calls. Timer tests use `jest.useFakeTimers()` to control `setInterval` and mock `Date.now()`. Format tests use a `stripAnsi` helper. Fixture files live in `tests/runner/fixtures/`. Jest uses `babel-jest` with `@babel/preset-env` and `@babel/preset-react` to transform ESM and JSX.
+All runner test files mock `fs`, `child_process`, and `chokidar` — no real filesystem or process calls. Timer tests use `jest.useFakeTimers()` to control `setInterval` and mock `Date.now()`. Format tests use a `stripAnsi` helper. Fixture files live in `tests/runner/fixtures/` and `tests/scripts/fixtures/`. Jest uses `babel-jest` with `@babel/preset-env` and `@babel/preset-react` to transform ESM and JSX. The `randomize-params` tests spawn the script as a child process to test CLI behavior accurately.
 
 ### Expectations
 
@@ -161,6 +163,8 @@ The CLI and skills interact exclusively through the filesystem: skills write `pr
 When adding new fields to `problem.json`, update `docs/problem-schema.md`, `.agents/templates/problem-schema-template.json`, and the worked examples in both files atomically.
 
 The three documents in `.agents/context/` are the knowledge foundation for all agent skills. When the `problem.json` schema changes, update `problem-authoring-guide.md` atomically. When difficulty calibration anchors need updating, update `difficulty-guide.md`.
+
+The randomization scripts in `.agents/scripts/` have unit tests in `tests/scripts/` — run `yarn test` to verify them. If `config.json` schema changes, update both scripts and their tests.
 
 ## Things to Never Do
 

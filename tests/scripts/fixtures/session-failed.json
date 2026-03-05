@@ -1,0 +1,31 @@
+{
+  "lastStarted": "2026-03-03T14:00:00.000Z",
+  "totalElapsedSeconds": 600,
+  "currentPartElapsedSeconds": 0,
+  "isPaused": false,
+  "pausedAt": null,
+  "totalPausedSeconds": 0,
+  "mode": "stopwatch",
+  "countdownSeconds": null,
+  "completed": false,
+  "currentPart": 0,
+  "splits": [],
+  "attempts": [
+    {
+      "date": "2026-03-01T10:00:00.000Z",
+      "totalSeconds": 500,
+      "splits": [],
+      "completed": false,
+      "wasCountdown": false,
+      "countdownSeconds": null
+    },
+    {
+      "date": "2026-03-03T14:00:00.000Z",
+      "totalSeconds": 600,
+      "splits": [],
+      "completed": false,
+      "wasCountdown": false,
+      "countdownSeconds": null
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "title": "Array Problem",
+  "description": "A problem involving arrays",
+  "topics": ["arrays"],
+  "difficulty": {
+    "algorithmComplexity": 1,
+    "dataStructureComplexity": 1,
+    "problemComplexity": 1,
+    "overall": 1
+  },
+  "style": "leetcode",
+  "expectedMinutes": 20,
+  "generatedBy": "manual",
+  "generatedAt": "",
+  "parts": [
+    {
+      "title": "Part 1",
+      "description": "Do the thing",
+      "activeTests": ["basic case"],
+      "scaffold": { "js": "", "python": "" }
+    }
+  ]
+}

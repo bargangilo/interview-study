@@ -1,0 +1,23 @@
+{
+  "lastStarted": "2026-02-20T10:00:00.000Z",
+  "totalElapsedSeconds": 800,
+  "currentPartElapsedSeconds": 0,
+  "isPaused": false,
+  "pausedAt": null,
+  "totalPausedSeconds": 0,
+  "mode": "stopwatch",
+  "countdownSeconds": null,
+  "completed": true,
+  "currentPart": 1,
+  "splits": [],
+  "attempts": [
+    {
+      "date": "2026-02-20T10:00:00.000Z",
+      "totalSeconds": 800,
+      "splits": [],
+      "completed": true,
+      "wasCountdown": false,
+      "countdownSeconds": null
+    }
+  ]
+}

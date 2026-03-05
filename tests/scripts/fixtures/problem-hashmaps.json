@@ -1,0 +1,23 @@
+{
+  "title": "Hash Map Problem",
+  "description": "A problem involving hash maps",
+  "topics": ["hash maps"],
+  "difficulty": {
+    "algorithmComplexity": 2,
+    "dataStructureComplexity": 2,
+    "problemComplexity": 2,
+    "overall": 2
+  },
+  "style": "leetcode",
+  "expectedMinutes": 25,
+  "generatedBy": "manual",
+  "generatedAt": "",
+  "parts": [
+    {
+      "title": "Part 1",
+      "description": "Do the thing",
+      "activeTests": ["basic case"],
+      "scaffold": { "js": "", "python": "" }
+    }
+  ]
+}
