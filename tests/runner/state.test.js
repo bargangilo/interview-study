@@ -10,6 +10,15 @@ describe("initialState", () => {
     expect(initialState.selectedLanguage).toBeNull();
     expect(initialState.countdownSeconds).toBeNull();
   });
+
+  test("has run result fields initialized", () => {
+    expect(initialState.rawRunStdout).toBe("");
+    expect(initialState.rawRunStderr).toBe("");
+    expect(initialState.lastRunAt).toBeNull();
+    expect(initialState.runTimedOut).toBe(false);
+    expect(initialState.runCrashed).toBe(false);
+    expect(initialState.runSkipped).toBe(false);
+  });
 });
 
 describe("reducer", () => {
@@ -310,6 +319,83 @@ describe("reducer", () => {
     expect(state.configValues).toBeNull();
   });
 
+  // --- Run result ---
+
+  test("RUN_RESULT_RECEIVED stores raw stdout and stderr", () => {
+    const prev = { ...initialState };
+    const state = reducer(prev, {
+      type: Action.RUN_RESULT_RECEIVED,
+      stdout: "hello world",
+      stderr: "some error",
+      ranAt: "2026-03-05T00:00:00.000Z",
+    });
+    expect(state.rawRunStdout).toBe("hello world");
+    expect(state.rawRunStderr).toBe("some error");
+  });
+
+  test("RUN_RESULT_RECEIVED updates lastRunAt, runTimedOut, runCrashed, runSkipped", () => {
+    const prev = { ...initialState };
+    const state = reducer(prev, {
+      type: Action.RUN_RESULT_RECEIVED,
+      timedOut: true,
+      crashed: false,
+      skipped: false,
+      ranAt: "2026-03-05T12:00:00.000Z",
+    });
+    expect(state.lastRunAt).toBe("2026-03-05T12:00:00.000Z");
+    expect(state.runTimedOut).toBe(true);
+    expect(state.runCrashed).toBe(false);
+    expect(state.runSkipped).toBe(false);
+  });
+
+  test("RUN_RESULT_RECEIVED with skipped: true", () => {
+    const prev = { ...initialState };
+    const state = reducer(prev, {
+      type: Action.RUN_RESULT_RECEIVED,
+      skipped: true,
+      ranAt: "2026-03-05T12:00:00.000Z",
+    });
+    expect(state.runSkipped).toBe(true);
+    expect(state.runTimedOut).toBe(false);
+    expect(state.runCrashed).toBe(false);
+  });
+
+  test("RUN_RESULT_RECEIVED clears watcherError", () => {
+    const prev = { ...initialState, watcherError: "old error" };
+    const state = reducer(prev, {
+      type: Action.RUN_RESULT_RECEIVED,
+      stdout: "",
+      stderr: "",
+    });
+    expect(state.watcherError).toBeNull();
+  });
+
+  // --- Test result ---
+
+  test("TEST_RESULT_RECEIVED clears watcherError", () => {
+    const prev = { ...initialState, watcherError: "old error" };
+    const state = reducer(prev, { type: Action.TEST_RESULT_RECEIVED });
+    expect(state.watcherError).toBeNull();
+  });
+
+  test("TEST_RESULT_RECEIVED has no consoleOutput handling", () => {
+    const prev = { ...initialState };
+    const state = reducer(prev, {
+      type: Action.TEST_RESULT_RECEIVED,
+      consoleOutput: ["should be ignored"],
+    });
+    // State should not have consoleOutput field set from the action
+    expect(state).not.toHaveProperty("consoleOutput");
+  });
+
+  // --- RUN_TESTS ---
+
+  test("RUN_TESTS does not change state", () => {
+    const prev = { ...initialState };
+    const state = reducer(prev, { type: Action.RUN_TESTS });
+    expect(state).toBe(prev);
+  });
+
   // --- Console output and logs ---
 
   test("TOGGLE_LOGS toggles showLogs from false to true", () => {
@@ -322,25 +408,6 @@ describe("reducer", () => {
     const prev = { ...initialState, showLogs: true };
     const state = reducer(prev, { type: Action.TOGGLE_LOGS });
     expect(state.showLogs).toBe(false);
-  });
-
-  test("TEST_RESULT_RECEIVED updates consoleOutput with payload value", () => {
-    const prev = { ...initialState, consoleOutput: [] };
-    const state = reducer(prev, {
-      type: Action.TEST_RESULT_RECEIVED,
-      consoleOutput: ["[log] hello"],
-    });
-    expect(state.consoleOutput).toEqual(["[log] hello"]);
-  });
-
-  test("TEST_RESULT_RECEIVED replaces previous consoleOutput", () => {
-    const prev = { ...initialState, consoleOutput: ["[log] old"] };
-    const state = reducer(prev, {
-      type: Action.TEST_RESULT_RECEIVED,
-      consoleOutput: ["[log] new"],
-    });
-    expect(state.consoleOutput).toEqual(["[log] new"]);
-    expect(state.consoleOutput).not.toContain("[log] old");
   });
 
   // --- Unknown action ---

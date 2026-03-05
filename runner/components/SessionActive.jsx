@@ -218,6 +218,9 @@ export default function SessionActive({
       onTestStart: () => {
         setTestState((prev) => ({ ...prev, running: true }));
       },
+      onRunResult: (result) => {
+        dispatch({ type: Action.RUN_RESULT_RECEIVED, ...result });
+      },
       onTestResult: (result) => {
         setTestState({
           passed: result.passed,
@@ -230,7 +233,6 @@ export default function SessionActive({
           exitCode: result.exitCode || null,
         });
         if (result.partInfo) setPartInfo(result.partInfo);
-        setConsoleOutput(result.consoleOutput || []);
         setErrorMessage(null);
       },
       onPartAdvanced: ({ completedPart, nextTitle, nextDescription, splitSeconds }) => {
@@ -332,6 +334,10 @@ export default function SessionActive({
           timer.pause();
         }
       }
+    } else if (input === "t" || input === "T") {
+      if (watcherRef.current && watcherRef.current.runTests) {
+        watcherRef.current.runTests();
+      }
     } else if (input === "l" || input === "L") {
       setShowLogs((prev) => !prev);
     }
@@ -340,7 +346,7 @@ export default function SessionActive({
   return (
     <>
       <Text color="cyan">{"\n  "}Watching {problem} ({language})</Text>
-      <Text dimColor>{"  "}Save in VS Code to run tests ({"\u2318"}S / Ctrl+S)  {"·"}  P pause  {"·"}  Q quit  {"·"}  L logs{"\n"}</Text>
+      <Text dimColor>{"  "}Save to run ({"\u2318"}S / Ctrl+S)  {"·"}  T test  {"·"}  P pause  {"·"}  Q quit  {"·"}  L logs{"\n"}</Text>
 
       <Static items={messages}>
         {(msg) => {

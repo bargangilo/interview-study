@@ -55,7 +55,9 @@ export const Action = {
   SETTINGS_BACK: "SETTINGS_BACK",
 
   // Session
+  RUN_RESULT_RECEIVED: "RUN_RESULT_RECEIVED",
   TEST_RESULT_RECEIVED: "TEST_RESULT_RECEIVED",
+  RUN_TESTS: "RUN_TESTS",
   WATCHER_ERROR: "WATCHER_ERROR",
   TOGGLE_LOGS: "TOGGLE_LOGS",
 
@@ -81,7 +83,12 @@ export const initialState = {
   clearProblem: null,
   clearConfig: null,
   // Session result context
-  consoleOutput: [],
+  rawRunStdout: "",
+  rawRunStderr: "",
+  lastRunAt: null,
+  runTimedOut: false,
+  runCrashed: false,
+  runSkipped: false,
   showLogs: false,
   watcherError: null,
   // Settings context
@@ -216,8 +223,21 @@ export function reducer(state, action) {
     }
 
     // --- Session ---
+    case Action.RUN_RESULT_RECEIVED:
+      return {
+        ...state,
+        rawRunStdout: action.stdout || "",
+        rawRunStderr: action.stderr || "",
+        lastRunAt: action.ranAt || null,
+        runTimedOut: !!action.timedOut,
+        runCrashed: !!action.crashed,
+        runSkipped: !!action.skipped,
+        watcherError: null,
+      };
     case Action.TEST_RESULT_RECEIVED:
-      return { ...state, consoleOutput: action.consoleOutput || [], watcherError: null };
+      return { ...state, watcherError: null };
+    case Action.RUN_TESTS:
+      return state;
     case Action.WATCHER_ERROR:
       return { ...state, watcherError: action.message };
     case Action.TOGGLE_LOGS:

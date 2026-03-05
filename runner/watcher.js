@@ -1,7 +1,8 @@
 import path from "path";
+import fs from "fs";
 import { spawn } from "child_process";
 import chokidar from "chokidar";
-import { getMilestoneWarning, parseConsoleOutput, parsePytestConsoleOutput } from "./format.js";
+import { getMilestoneWarning } from "./format.js";
 import {
   appendPartScaffold,
   buildTestFilter,
@@ -36,107 +37,144 @@ function parsePytestOutput(stdout) {
   return { passed, total: passed + failed };
 }
 
-function runTests(problem, language, rootDir, testFilter, runnerConfig) {
+/**
+ * Spawns a process with a timeout and collects stdout/stderr.
+ * Returns a promise that resolves with { stdout, stderr, timedOut, crashed, exitCode }.
+ */
+function spawnWithTimeout(cmd, args, options, timeoutMs) {
   return new Promise((resolve) => {
-    let cmd, args, parser;
+    const proc = spawn(cmd, args, options);
 
-    if (language === "JavaScript") {
-      cmd = "yarn";
-      const testFile = testFilter
-        ? path.join(rootDir, "problems", problem, "suite.test.js")
-        : path.join(rootDir, "problems", problem, "sample.test.js");
-      args = ["jest", testFile, "--no-coverage", "--testPathIgnorePatterns=[]"];
-      if (testFilter) {
-        args.push("--testNamePattern", testFilter);
-      }
-      parser = parseJestOutput;
-    } else {
-      const testFile = testFilter
-        ? path.join(rootDir, "problems", problem, "suite.test.py")
-        : path.join(rootDir, "problems", problem, "test_sample.py");
-      cmd = "pytest";
-      args = [testFile, "-v"];
-      if (testFilter) {
-        args.push("-k", testFilter, "--import-mode=importlib");
-      }
-      parser = parsePytestOutput;
-    }
-
-    const proc = spawn(cmd, args, {
-      cwd: rootDir,
-      stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, FORCE_COLOR: "0" },
-    });
-
-    let output = "";
+    let stdout = "";
+    let stderr = "";
     let timedOut = false;
 
-    proc.stdout.on("data", (d) => (output += d.toString()));
-    proc.stderr.on("data", (d) => (output += d.toString()));
+    proc.stdout.on("data", (d) => (stdout += d.toString()));
+    proc.stderr.on("data", (d) => (stderr += d.toString()));
 
     const timeout = setTimeout(() => {
       timedOut = true;
       proc.kill("SIGKILL");
-    }, runnerConfig.testTimeoutSeconds * 1000);
+    }, timeoutMs);
 
     proc.on("close", (code, signal) => {
       clearTimeout(timeout);
 
       if (timedOut) {
-        resolve({
-          passed: 0,
-          total: 0,
-          timedOut: true,
-          timeoutSeconds: runnerConfig.testTimeoutSeconds,
-          consoleOutput: [],
-        });
+        resolve({ stdout, stderr, timedOut: true, crashed: false, exitCode: null });
         return;
       }
 
       if (signal) {
-        resolve({
-          passed: 0,
-          total: 0,
-          crashed: true,
-          exitCode: null,
-          signal,
-          consoleOutput: [],
-        });
+        resolve({ stdout, stderr, timedOut: false, crashed: true, exitCode: null, signal });
         return;
       }
 
-      if (code >= 2) {
-        resolve({
-          passed: 0,
-          total: 0,
-          crashed: true,
-          exitCode: code,
-          consoleOutput: [],
-        });
-        return;
-      }
-
-      // Exit code 0 (all pass) or 1 (some fail) — parse results
-      const consoleOutput = language === "JavaScript"
-        ? parseConsoleOutput(output)
-        : parsePytestConsoleOutput(output);
-      const result = parser(output);
-      if (result) {
-        resolve({ ...result, consoleOutput });
-      } else {
-        resolve({ passed: 0, total: 0, consoleOutput });
-      }
+      resolve({ stdout, stderr, timedOut: false, crashed: code >= 2, exitCode: code });
     });
 
     proc.on("error", () => {
       clearTimeout(timeout);
-      resolve({ passed: 0, total: 0, consoleOutput: [] });
+      resolve({ stdout, stderr, timedOut: false, crashed: true, exitCode: null });
     });
   });
 }
 
 /**
- * Starts watching a solution file and running tests on save.
+ * Runs the test suite (Jest or pytest) for a problem.
+ * Returns { passed, total, timedOut, crashed, exitCode, timeoutSeconds }.
+ */
+async function runTestSuite(problem, language, rootDir, testFilter, runnerConfig) {
+  let cmd, args, parser;
+
+  if (language === "JavaScript") {
+    cmd = "yarn";
+    const testFile = testFilter
+      ? path.join(rootDir, "problems", problem, "suite.test.js")
+      : path.join(rootDir, "problems", problem, "sample.test.js");
+    args = ["jest", testFile, "--no-coverage", "--testPathIgnorePatterns=[]"];
+    if (testFilter) {
+      args.push("--testNamePattern", testFilter);
+    }
+    parser = parseJestOutput;
+  } else {
+    const testFile = testFilter
+      ? path.join(rootDir, "problems", problem, "suite.test.py")
+      : path.join(rootDir, "problems", problem, "test_sample.py");
+    cmd = "pytest";
+    args = [testFile, "-v"];
+    if (testFilter) {
+      args.push("-k", testFilter, "--import-mode=importlib");
+    }
+    parser = parsePytestOutput;
+  }
+
+  const result = await spawnWithTimeout(cmd, args, {
+    cwd: rootDir,
+    stdio: ["ignore", "pipe", "pipe"],
+    env: { ...process.env, FORCE_COLOR: "0" },
+  }, runnerConfig.testTimeoutSeconds * 1000);
+
+  if (result.timedOut) {
+    return {
+      passed: 0,
+      total: 0,
+      timedOut: true,
+      timeoutSeconds: runnerConfig.testTimeoutSeconds,
+    };
+  }
+
+  if (result.crashed) {
+    return {
+      passed: 0,
+      total: 0,
+      crashed: true,
+      exitCode: result.exitCode,
+    };
+  }
+
+  const output = result.stdout + result.stderr;
+  const parsed = parser(output);
+  if (parsed) {
+    return { ...parsed };
+  }
+  return { passed: 0, total: 0 };
+}
+
+/**
+ * Runs the harness file (_run.js or _run.py) for a problem.
+ * Returns { skipped, stdout, stderr, timedOut, crashed, exitCode, ranAt }.
+ */
+async function runHarness(problem, language, rootDir, runnerConfig) {
+  const ext = language === "JavaScript" ? "js" : "py";
+  const harnessPath = path.join(rootDir, "workspace", problem, `_run.${ext}`);
+
+  if (!fs.existsSync(harnessPath)) {
+    return { skipped: true, stdout: "", stderr: "", timedOut: false, crashed: false, exitCode: null, ranAt: new Date().toISOString() };
+  }
+
+  const cmd = language === "JavaScript" ? "node" : "python3";
+  const result = await spawnWithTimeout(cmd, [harnessPath], {
+    cwd: path.join(rootDir, "workspace", problem),
+    stdio: ["ignore", "pipe", "pipe"],
+    env: { ...process.env, FORCE_COLOR: "0" },
+  }, runnerConfig.testTimeoutSeconds * 1000);
+
+  const ranAt = new Date().toISOString();
+
+  if (result.timedOut) {
+    return { skipped: false, stdout: "", stderr: "", timedOut: true, crashed: false, exitCode: null, ranAt };
+  }
+
+  if (result.crashed || (result.exitCode !== null && result.exitCode !== 0)) {
+    return { skipped: false, stdout: result.stdout, stderr: result.stderr, timedOut: false, crashed: true, exitCode: result.exitCode, ranAt };
+  }
+
+  return { skipped: false, stdout: result.stdout, stderr: result.stderr, timedOut: false, crashed: false, exitCode: result.exitCode, ranAt };
+}
+
+/**
+ * Starts watching a solution file and running the harness on save.
  *
  * @param {string} problem
  * @param {string} language
@@ -145,14 +183,17 @@ function runTests(problem, language, rootDir, testFilter, runnerConfig) {
  * @param {number} startPart - 0-indexed part to start from
  * @param {object|null} timerController
  * @param {object} callbacks - UI callbacks (all optional):
+ *   onRunResult({ skipped, stdout, stderr, timedOut, crashed, exitCode, ranAt })
  *   onTestStart()
- *   onTestResult({ passed, total, timestamp, partInfo, consoleOutput, timedOut?, timeoutSeconds?, crashed?, exitCode? })
+ *   onTestResult({ passed, total, timestamp, partInfo, timedOut?, timeoutSeconds?, crashed?, exitCode? })
  *   onPartAdvanced({ completedPart, nextTitle, nextDescription, splitSeconds })
  *   onAllComplete({ problem })
  *   onMilestone({ warning })
  *   onOvertime()
  *   onTimerTick({ timerDisplay, passed, total, timestamp, partInfo })
  *   onError(err)
+ *
+ * @returns {{ close, completionPromise, timerController, runTests }}
  */
 export function startWatching(problem, language, rootDir, config, startPart, timerController, callbacks = {}) {
   const runnerConfig = loadRunnerConfig(rootDir);
@@ -168,6 +209,10 @@ export function startWatching(problem, language, rootDir, config, startPart, tim
   // Milestone dedup tracking
   const firedMilestones = new Set();
   let overtimeNotified = false;
+
+  // Debounce flags
+  let _runInProgress = false;
+  let _testRunInProgress = false;
 
   function checkMilestones(state) {
     if (state.isPaused) return;
@@ -192,14 +237,25 @@ export function startWatching(problem, language, rootDir, config, startPart, tim
 
   // --- Legacy path (no config / single-part) ---
   if (!config) {
-    let running = false;
+    const onSave = async () => {
+      if (_runInProgress) return;
+      _runInProgress = true;
+      try {
+        const result = await runHarness(problem, language, rootDir, runnerConfig);
+        if (callbacks.onRunResult) callbacks.onRunResult(result);
+      } catch (err) {
+        handleError(err);
+      } finally {
+        _runInProgress = false;
+      }
+    };
 
-    const run = async () => {
-      if (running) return;
-      running = true;
+    const imperativeRunTests = async () => {
+      if (_testRunInProgress) return;
+      _testRunInProgress = true;
       try {
         if (callbacks.onTestStart) callbacks.onTestStart();
-        const result = await runTests(problem, language, rootDir, null, runnerConfig);
+        const result = await runTestSuite(problem, language, rootDir, null, runnerConfig);
         lastPassed = result.passed;
         lastTotal = result.total;
         lastTimestamp = Date.now();
@@ -209,14 +265,14 @@ export function startWatching(problem, language, rootDir, config, startPart, tim
       } catch (err) {
         handleError(err);
       } finally {
-        running = false;
+        _testRunInProgress = false;
       }
     };
 
     // Register timer tick callback
     if (timerController) {
       timerController.onTick((state) => {
-        if (running) return;
+        if (_runInProgress || _testRunInProgress) return;
         checkMilestones(state);
         if (callbacks.onTimerTick) {
           callbacks.onTimerTick({
@@ -230,14 +286,14 @@ export function startWatching(problem, language, rootDir, config, startPart, tim
       });
     }
 
-    run();
+    onSave();
 
     const watcher = chokidar.watch(filePath, {
       ignoreInitial: true,
       awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 50 },
     });
 
-    watcher.on("change", run);
+    watcher.on("change", onSave);
 
     return {
       close: () => {
@@ -246,21 +302,34 @@ export function startWatching(problem, language, rootDir, config, startPart, tim
       },
       completionPromise: new Promise(() => {}),
       timerController,
+      runTests: imperativeRunTests,
     };
   }
 
   // --- Multi-part path ---
   let currentPart = startPart || 0;
-  let running = false;
   let ignoreNextChange = false;
   let _resolveCompletion;
   const completionPromise = new Promise((resolve) => {
     _resolveCompletion = resolve;
   });
 
-  const run = async () => {
-    if (running) return;
-    running = true;
+  const onSave = async () => {
+    if (_runInProgress) return;
+    _runInProgress = true;
+    try {
+      const result = await runHarness(problem, language, rootDir, runnerConfig);
+      if (callbacks.onRunResult) callbacks.onRunResult(result);
+    } catch (err) {
+      handleError(err);
+    } finally {
+      _runInProgress = false;
+    }
+  };
+
+  const imperativeRunTests = async () => {
+    if (_testRunInProgress) return;
+    _testRunInProgress = true;
 
     try {
       let advancing = true;
@@ -272,7 +341,7 @@ export function startWatching(problem, language, rootDir, config, startPart, tim
           config.parts[currentPart].activeTests,
           language
         );
-        const result = await runTests(
+        const result = await runTestSuite(
           problem,
           language,
           rootDir,
@@ -327,14 +396,14 @@ export function startWatching(problem, language, rootDir, config, startPart, tim
     } catch (err) {
       handleError(err);
     } finally {
-      running = false;
+      _testRunInProgress = false;
     }
   };
 
   // Register timer tick callback
   if (timerController) {
     timerController.onTick((state) => {
-      if (running) return;
+      if (_runInProgress || _testRunInProgress) return;
       checkMilestones(state);
       if (callbacks.onTimerTick) {
         callbacks.onTimerTick({
@@ -348,8 +417,8 @@ export function startWatching(problem, language, rootDir, config, startPart, tim
     });
   }
 
-  // Run tests once immediately
-  run();
+  // Run harness once immediately
+  onSave();
 
   const watcher = chokidar.watch(filePath, {
     ignoreInitial: true,
@@ -361,7 +430,7 @@ export function startWatching(problem, language, rootDir, config, startPart, tim
       ignoreNextChange = false;
       return;
     }
-    run();
+    onSave();
   });
 
   return {
@@ -371,5 +440,6 @@ export function startWatching(problem, language, rootDir, config, startPart, tim
     },
     completionPromise,
     timerController,
+    runTests: imperativeRunTests,
   };
 }

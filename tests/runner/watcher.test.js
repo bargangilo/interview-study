@@ -50,6 +50,9 @@ function createMockProcess() {
     emitStdout(data) {
       (stdoutListeners["data"] || []).forEach((h) => h(Buffer.from(data)));
     },
+    emitStderr(data) {
+      (stderrListeners["data"] || []).forEach((h) => h(Buffer.from(data)));
+    },
   };
 }
 
@@ -60,6 +63,20 @@ function createMockWatcher() {
 function setupRunnerConfigMock(config = { testTimeoutSeconds: 5 }) {
   fs.existsSync.mockImplementation((p) => {
     if (typeof p === "string" && p.includes("runner.config.json")) return true;
+    // Default: harness exists (so run path doesn't skip)
+    if (typeof p === "string" && (p.includes("_run.js") || p.includes("_run.py"))) return true;
+    return false;
+  });
+  fs.readFileSync.mockImplementation((p, enc) => {
+    if (typeof p === "string" && p.includes("runner.config.json")) return JSON.stringify(config);
+    return "";
+  });
+}
+
+function setupRunnerConfigMockNoHarness(config = { testTimeoutSeconds: 5 }) {
+  fs.existsSync.mockImplementation((p) => {
+    if (typeof p === "string" && p.includes("runner.config.json")) return true;
+    if (typeof p === "string" && (p.includes("_run.js") || p.includes("_run.py"))) return false;
     return false;
   });
   fs.readFileSync.mockImplementation((p, enc) => {
@@ -364,9 +381,9 @@ describe("loadRunnerConfig", () => {
   });
 });
 
-// --- Watcher process behavior ---
+// --- Watcher run path (on save — spawns harness) ---
 
-describe("watcher process behavior", () => {
+describe("watcher run path (on save)", () => {
   let mockProc;
   let mockWatcherObj;
 
@@ -380,55 +397,65 @@ describe("watcher process behavior", () => {
 
   afterEach(() => jest.restoreAllMocks());
 
-  test("exit code 0 produces normal result with consoleOutput", async () => {
-    const onTestResult = jest.fn();
+  test("file save spawns harness process, not Jest", async () => {
+    const onRunResult = jest.fn();
     startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
-      onTestResult,
+      onRunResult,
     });
 
-    mockProc.emitStdout("Tests: 3 passed, 3 total\n");
+    // Initial spawn is the harness (node _run.js), not yarn jest
+    expect(spawn).toHaveBeenCalledWith(
+      "node",
+      [path.join("/fake", "workspace", "test-problem", "_run.js")],
+      expect.objectContaining({ cwd: path.join("/fake", "workspace", "test-problem") })
+    );
+  });
+
+  test("onRunResult called with stdout and stderr on normal exit", async () => {
+    const onRunResult = jest.fn();
+    startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
+      onRunResult,
+    });
+
+    mockProc.emitStdout("[twoSum(1,5)] ✔ [0,3]\n");
+    mockProc.emitStderr("some warning\n");
     mockProc.emit("close", 0, null);
     await flush();
 
-    expect(onTestResult).toHaveBeenCalledWith(
-      expect.objectContaining({ passed: 3, total: 3, consoleOutput: [] })
+    expect(onRunResult).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skipped: false,
+        stdout: "[twoSum(1,5)] ✔ [0,3]\n",
+        stderr: "some warning\n",
+        timedOut: false,
+        crashed: false,
+      })
     );
+    expect(onRunResult.mock.calls[0][0].ranAt).toBeDefined();
   });
 
-  test("exit code 1 produces normal failure result with consoleOutput", async () => {
-    const onTestResult = jest.fn();
-    startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
-      onTestResult,
-    });
+  test("onRunResult with skipped: true when no harness file exists", async () => {
+    setupRunnerConfigMockNoHarness({ testTimeoutSeconds: 5 });
+    spawn.mockClear();
 
-    mockProc.emitStdout("Tests: 1 failed, 2 passed, 3 total\n");
-    mockProc.emit("close", 1, null);
+    const onRunResult = jest.fn();
+    startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
+      onRunResult,
+    });
     await flush();
 
-    expect(onTestResult).toHaveBeenCalledWith(
-      expect.objectContaining({ passed: 2, total: 3, consoleOutput: [] })
+    expect(onRunResult).toHaveBeenCalledWith(
+      expect.objectContaining({ skipped: true })
     );
+    // spawn should NOT have been called
+    expect(spawn).not.toHaveBeenCalled();
   });
 
-  test("exit code 2 produces crashed result", async () => {
-    const onTestResult = jest.fn();
-    startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
-      onTestResult,
-    });
-
-    mockProc.emit("close", 2, null);
-    await flush();
-
-    expect(onTestResult).toHaveBeenCalledWith(
-      expect.objectContaining({ passed: 0, total: 0, crashed: true, exitCode: 2, consoleOutput: [] })
-    );
-  });
-
-  test("timeout fires after configured seconds and calls onTestResult with timedOut", async () => {
+  test("onRunResult with timedOut: true after timeout", async () => {
     jest.useFakeTimers();
-    const onTestResult = jest.fn();
+    const onRunResult = jest.fn();
     startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
-      onTestResult,
+      onRunResult,
     });
 
     jest.advanceTimersByTime(5000);
@@ -437,21 +464,56 @@ describe("watcher process behavior", () => {
     mockProc.emit("close", null, "SIGKILL");
     await jest.advanceTimersByTimeAsync(0);
 
-    expect(onTestResult).toHaveBeenCalledWith(
-      expect.objectContaining({ timedOut: true, timeoutSeconds: 5, consoleOutput: [] })
+    expect(onRunResult).toHaveBeenCalledWith(
+      expect.objectContaining({ timedOut: true, skipped: false })
     );
 
     jest.useRealTimers();
   });
 
-  test("timeout is cleared when process exits normally before timeout", async () => {
-    jest.useFakeTimers();
-    const onTestResult = jest.fn();
+  test("onRunResult with crashed: true on non-zero exit", async () => {
+    const onRunResult = jest.fn();
     startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
-      onTestResult,
+      onRunResult,
     });
 
-    mockProc.emitStdout("Tests: 1 passed, 1 total\n");
+    mockProc.emitStdout("partial output\n");
+    mockProc.emit("close", 1, null);
+    await flush();
+
+    expect(onRunResult).toHaveBeenCalledWith(
+      expect.objectContaining({
+        crashed: true,
+        stdout: "partial output\n",
+        skipped: false,
+      })
+    );
+  });
+
+  test("includes partial stdout on crash", async () => {
+    const onRunResult = jest.fn();
+    startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
+      onRunResult,
+    });
+
+    mockProc.emitStdout("line 1\nline 2\n");
+    mockProc.emitStderr("error details\n");
+    mockProc.emit("close", 1, null);
+    await flush();
+
+    const result = onRunResult.mock.calls[0][0];
+    expect(result.stdout).toBe("line 1\nline 2\n");
+    expect(result.stderr).toBe("error details\n");
+  });
+
+  test("timeout cleared on normal exit", async () => {
+    jest.useFakeTimers();
+    const onRunResult = jest.fn();
+    startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
+      onRunResult,
+    });
+
+    mockProc.emitStdout("output\n");
     mockProc.emit("close", 0, null);
     await jest.advanceTimersByTimeAsync(0);
 
@@ -461,99 +523,230 @@ describe("watcher process behavior", () => {
 
     jest.useRealTimers();
   });
+});
 
-  test("timedOut in close handler skips normal result processing", async () => {
-    jest.useFakeTimers();
-    const onTestResult = jest.fn();
-    startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
-      onTestResult,
-    });
+// --- runTests() imperative method ---
 
-    // Send normal output that would parse as passed tests
-    mockProc.emitStdout("Tests: 5 passed, 5 total\n");
+describe("runTests() imperative method", () => {
+  let mockProc;
+  let mockWatcherObj;
 
-    // Fire timeout before close
-    jest.advanceTimersByTime(5000);
-    mockProc.emit("close", null, "SIGKILL");
-    await jest.advanceTimersByTimeAsync(0);
-
-    // Should get timeout result, not the parsed 5/5
-    expect(onTestResult).toHaveBeenCalledWith(
-      expect.objectContaining({ timedOut: true, passed: 0, total: 0 })
-    );
-
-    jest.useRealTimers();
+  beforeEach(() => {
+    mockProc = createMockProcess();
+    mockWatcherObj = createMockWatcher();
+    spawn.mockReturnValue(mockProc);
+    chokidar.watch.mockReturnValue(mockWatcherObj);
+    setupRunnerConfigMock({ testTimeoutSeconds: 5 });
   });
 
-  test("onTestResult receives populated consoleOutput when Jest stdout contains console blocks", async () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  test("spawns Jest, not node harness", async () => {
+    const onRunResult = jest.fn();
     const onTestResult = jest.fn();
-    startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
+
+    // Complete the initial harness run first
+    const watcher = startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
+      onRunResult,
       onTestResult,
     });
 
-    const stdout = [
-      "  console.log",
-      "    debug value: 42",
-      "      at Object.<anonymous> (workspace/test-problem/main.js:5:9)",
-      "",
-      "Tests: 1 passed, 1 total",
-    ].join("\n");
-    mockProc.emitStdout(stdout);
+    mockProc.emitStdout("harness output\n");
     mockProc.emit("close", 0, null);
     await flush();
 
-    expect(onTestResult).toHaveBeenCalledWith(
-      expect.objectContaining({
-        consoleOutput: ["[log] debug value: 42"],
-      })
+    // Reset and prepare a new mock process for the test run
+    const testProc = createMockProcess();
+    spawn.mockReturnValue(testProc);
+
+    watcher.runTests();
+
+    expect(spawn).toHaveBeenLastCalledWith(
+      "yarn",
+      expect.arrayContaining(["jest"]),
+      expect.objectContaining({ cwd: "/fake" })
     );
   });
 
-  test("onTestResult receives [] for consoleOutput when no console output present", async () => {
+  test("onTestResult called with pass/fail counts", async () => {
+    const onRunResult = jest.fn();
     const onTestResult = jest.fn();
-    startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
+
+    const watcher = startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
+      onRunResult,
       onTestResult,
     });
 
-    mockProc.emitStdout("Tests: 3 passed, 3 total\n");
+    // Complete initial harness run
     mockProc.emit("close", 0, null);
     await flush();
 
-    expect(onTestResult).toHaveBeenCalledWith(
-      expect.objectContaining({ consoleOutput: [] })
-    );
-  });
+    const testProc = createMockProcess();
+    spawn.mockReturnValue(testProc);
+    watcher.runTests();
 
-  test("onTestResult receives [] for consoleOutput on timeout", async () => {
-    jest.useFakeTimers();
-    const onTestResult = jest.fn();
-    startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
-      onTestResult,
-    });
-
-    jest.advanceTimersByTime(5000);
-    mockProc.emit("close", null, "SIGKILL");
-    await jest.advanceTimersByTimeAsync(0);
-
-    expect(onTestResult).toHaveBeenCalledWith(
-      expect.objectContaining({ timedOut: true, consoleOutput: [] })
-    );
-    jest.useRealTimers();
-  });
-
-  test("onTestResult receives [] for consoleOutput on crash", async () => {
-    const onTestResult = jest.fn();
-    startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
-      onTestResult,
-    });
-
-    mockProc.emit("close", 2, null);
+    testProc.emitStdout("Tests: 3 passed, 3 total\n");
+    testProc.emit("close", 0, null);
     await flush();
 
     expect(onTestResult).toHaveBeenCalledWith(
-      expect.objectContaining({ crashed: true, consoleOutput: [] })
+      expect.objectContaining({ passed: 3, total: 3 })
     );
   });
+
+  test("debounce: second call while in-progress is ignored", async () => {
+    const onRunResult = jest.fn();
+    const onTestResult = jest.fn();
+
+    const watcher = startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
+      onRunResult,
+      onTestResult,
+    });
+
+    // Complete initial harness run
+    mockProc.emit("close", 0, null);
+    await flush();
+
+    spawn.mockClear();
+    const testProc = createMockProcess();
+    spawn.mockReturnValue(testProc);
+
+    watcher.runTests();
+    watcher.runTests(); // should be ignored
+
+    // spawn called once for the test run only
+    expect(spawn).toHaveBeenCalledTimes(1);
+  });
+
+  test("onTestResult shape has no consoleOutput", async () => {
+    const onRunResult = jest.fn();
+    const onTestResult = jest.fn();
+
+    const watcher = startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
+      onRunResult,
+      onTestResult,
+    });
+
+    // Complete initial harness run
+    mockProc.emit("close", 0, null);
+    await flush();
+
+    const testProc = createMockProcess();
+    spawn.mockReturnValue(testProc);
+    watcher.runTests();
+
+    testProc.emitStdout("Tests: 1 passed, 1 total\n");
+    testProc.emit("close", 0, null);
+    await flush();
+
+    const result = onTestResult.mock.calls[0][0];
+    expect(result).not.toHaveProperty("consoleOutput");
+  });
+});
+
+// --- Separation of run and test paths ---
+
+describe("separation of run and test paths", () => {
+  let mockProc;
+  let mockWatcherObj;
+
+  beforeEach(() => {
+    mockProc = createMockProcess();
+    mockWatcherObj = createMockWatcher();
+    spawn.mockReturnValue(mockProc);
+    chokidar.watch.mockReturnValue(mockWatcherObj);
+    setupRunnerConfigMock({ testTimeoutSeconds: 5 });
+  });
+
+  afterEach(() => jest.restoreAllMocks());
+
+  test("file save does not trigger onTestResult", async () => {
+    const onRunResult = jest.fn();
+    const onTestResult = jest.fn();
+
+    startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
+      onRunResult,
+      onTestResult,
+    });
+
+    mockProc.emitStdout("harness output\n");
+    mockProc.emit("close", 0, null);
+    await flush();
+
+    expect(onRunResult).toHaveBeenCalled();
+    expect(onTestResult).not.toHaveBeenCalled();
+  });
+
+  test("runTests() does not trigger onRunResult", async () => {
+    const onRunResult = jest.fn();
+    const onTestResult = jest.fn();
+
+    const watcher = startWatching("test-problem", "JavaScript", "/fake", null, 0, null, {
+      onRunResult,
+      onTestResult,
+    });
+
+    // Complete initial harness run
+    mockProc.emit("close", 0, null);
+    await flush();
+    onRunResult.mockClear();
+
+    const testProc = createMockProcess();
+    spawn.mockReturnValue(testProc);
+    watcher.runTests();
+
+    testProc.emitStdout("Tests: 1 passed, 1 total\n");
+    testProc.emit("close", 0, null);
+    await flush();
+
+    expect(onTestResult).toHaveBeenCalled();
+    expect(onRunResult).not.toHaveBeenCalled();
+  });
+
+  test("part progression triggered by onTestResult only", async () => {
+    const onRunResult = jest.fn();
+    const onTestResult = jest.fn();
+    const onPartAdvanced = jest.fn();
+
+    const watcher = startWatching("test-problem", "JavaScript", "/fake", sampleConfig, 0, null, {
+      onRunResult,
+      onTestResult,
+      onPartAdvanced,
+    });
+
+    // Complete initial harness run — should NOT trigger part advancement
+    mockProc.emit("close", 0, null);
+    await flush();
+    expect(onPartAdvanced).not.toHaveBeenCalled();
+
+    // Now run tests which pass all — triggers part advancement
+    const testProc = createMockProcess();
+    spawn.mockReturnValue(testProc);
+    watcher.runTests();
+
+    testProc.emitStdout("Tests: 2 passed, 2 total\n");
+    testProc.emit("close", 0, null);
+    await flush();
+
+    expect(onPartAdvanced).toHaveBeenCalled();
+  });
+});
+
+// --- Error handling ---
+
+describe("watcher error handling", () => {
+  let mockProc;
+  let mockWatcherObj;
+
+  beforeEach(() => {
+    mockProc = createMockProcess();
+    mockWatcherObj = createMockWatcher();
+    spawn.mockReturnValue(mockProc);
+    chokidar.watch.mockReturnValue(mockWatcherObj);
+    setupRunnerConfigMock({ testTimeoutSeconds: 5 });
+  });
+
+  afterEach(() => jest.restoreAllMocks());
 
   test("unhandled error in file-change handler calls onError callback", async () => {
     const onError = jest.fn();
@@ -570,12 +763,12 @@ describe("watcher process behavior", () => {
       onError,
     });
 
-    // Complete the initial run so running=false
-    mockProc.emitStdout("Tests: 1 passed, 1 total\n");
+    // Complete the initial run so _runInProgress=false
+    mockProc.emitStdout("output\n");
     mockProc.emit("close", 0, null);
     await flush();
 
-    // Trigger file change — this calls run() again, which spawns and throws
+    // Trigger file change — this calls onSave() again, which spawns and throws
     const changeHandler = mockWatcherObj.on.mock.calls.find(([e]) => e === "change")[1];
     changeHandler();
     await flush();

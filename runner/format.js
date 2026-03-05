@@ -81,52 +81,78 @@ export function formatGlobalStats(stats) {
   return lines.join("\n");
 }
 
-/**
- * Parses console output from Jest stdout.
- * Extracts console.log/error/warn/info lines from solution code only (workspace/ paths).
- * Returns a flat array of labeled strings, one per line of output.
- */
-export function parseConsoleOutput(stdout) {
-  if (!stdout) return [];
-  const lines = [];
-  const blockRegex = /^ {2}console\.(log|error|warn|info)\n([\s\S]*?)^ {6}at /gm;
-  let match;
-  while ((match = blockRegex.exec(stdout)) !== null) {
-    const method = match[1];
-    const body = match[2];
-    // Check the "at" line to ensure it's from workspace/
-    const atLineMatch = stdout.slice(match.index).match(/at .+?\((.+?)\)/);
-    if (!atLineMatch || !atLineMatch[1].includes("workspace/")) continue;
-    const label = `[${method}]`;
-    for (const line of body.split("\n")) {
-      const trimmed = line.replace(/^ {4}/, "");
-      if (trimmed.length > 0) {
-        lines.push(`${label} ${trimmed}`);
-      }
-    }
-  }
-  return lines;
+const TRUNCATE_LIMIT = 200;
+const ERROR_CLASS_PATTERN = /^[A-Z][A-Za-z]*(?:Error|Exception|Warning|Fault): /;
+
+function truncate(str) {
+  if (str && str.length > TRUNCATE_LIMIT) return str.slice(0, TRUNCATE_LIMIT) + "\u2026";
+  return str;
 }
 
 /**
- * Parses console output from pytest stdout.
- * Extracts lines from "Captured stdout call" sections.
- * Returns a flat array of plain strings.
+ * Parses raw harness stdout/stderr into structured output objects.
+ * Never throws — unexpected formats return whatever is parseable.
+ *
+ * @param {string} stdout - raw stdout from harness
+ * @param {string} stderr - raw stderr from harness
+ * @returns {Array} array of output objects
  */
-export function parsePytestConsoleOutput(stdout) {
-  if (!stdout) return [];
-  const lines = [];
-  const sectionRegex = /- Captured stdout call -+\n([\s\S]*?)(?=\n-{3,}|\n={3,}|$)/g;
-  let match;
-  while ((match = sectionRegex.exec(stdout)) !== null) {
-    const body = match[1];
-    for (const line of body.split("\n")) {
-      if (line.length > 0) {
-        lines.push(line);
+export function formatRunOutput(stdout, stderr) {
+  const results = [];
+
+  if (stdout) {
+    const lines = stdout.split("\n");
+    for (const line of lines) {
+      if (line.length === 0) continue;
+
+      // Check if line is labeled: starts with [ and has ] followed by space
+      const labelMatch = line.match(/^\[([^\]]+)\] (.*)$/);
+      if (labelMatch) {
+        const label = labelMatch[1];
+        const remainder = labelMatch[2];
+
+        if (remainder.startsWith("\u2714 ")) {
+          // Passed result
+          results.push({ type: "result", label, passed: true, actual: truncate(remainder.slice(2)) });
+        } else if (remainder.startsWith("\u2718 ")) {
+          // Failed result or error
+          const content = remainder.slice(2);
+          // Check if it's an error line
+          if (ERROR_CLASS_PATTERN.test(content)) {
+            results.push({ type: "error", label, content: truncate(content) });
+          } else {
+            // Parse actual (expected expected) format
+            const expectedMatch = content.match(/^(.*) \(expected (.*)\)$/);
+            if (expectedMatch) {
+              results.push({ type: "result", label, passed: false, actual: truncate(expectedMatch[1]), expected: truncate(expectedMatch[2]) });
+            } else {
+              results.push({ type: "result", label, passed: false, actual: truncate(content) });
+            }
+          }
+        } else if (ERROR_CLASS_PATTERN.test(remainder)) {
+          // Error without ✔/✗ prefix
+          results.push({ type: "error", label, content: truncate(remainder) });
+        } else {
+          // Result with no expected (no ✔/✗)
+          results.push({ type: "result", label, passed: null, actual: truncate(remainder) });
+        }
+      } else {
+        // Unlabeled line — user console.log
+        results.push({ type: "log", label: null, content: truncate(line) });
       }
     }
   }
-  return lines;
+
+  if (stderr) {
+    const stderrLines = stderr.split("\n");
+    for (const line of stderrLines) {
+      const trimmed = line.trim();
+      if (trimmed.length === 0) continue;
+      results.push({ type: "stderr", label: null, content: truncate(trimmed) });
+    }
+  }
+
+  return results;
 }
 
 /**
