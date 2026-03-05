@@ -20,7 +20,7 @@
 Output media/output/session-active.gif
 
 Set FontSize 13
-Set Width 800
+Set Width 850
 Set Height 400
 Set Theme "Dracula"
 Set PlaybackSpeed 0.75
