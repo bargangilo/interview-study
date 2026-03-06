@@ -24,7 +24,8 @@
         "target is zero with positive and negative values",
         "does not use same element twice when value is half of target",
         "two element array that sums to target",
-        "solution uses last element in array"
+        "solution uses last element in array",
+        "preserves the original nums array"
       ],
       "scaffold": {
         "js": "/**\n * Two Sum\n *\n * Given an array of integers `nums` and an integer `target`,\n * return the indices of the two numbers that add up to `target`.\n *\n * You may assume each input has exactly one solution,\n * and you may not use the same element twice.\n *\n * @param {number[]} nums\n * @param {number} target\n * @returns {number[]}\n */\nfunction twoSum(nums, target) {\n  // TODO: implement\n}\n\nmodule.exports = { twoSum };\n",
@@ -59,6 +60,7 @@
         "does not use same element twice when value is half of target",
         "two element array that sums to target",
         "solution uses last element in array",
+        "preserves the original nums array",
         "negative numbers",
         "large input"
       ],
@@ -97,6 +99,7 @@
         "solution uses last element in array",
         "negative numbers",
         "large input",
+        "preserves the original nums array",
         "basic three sum",
         "no three sum solution",
         "three sum with duplicates",
@@ -104,7 +107,8 @@
         "three sum single valid triplet",
         "three sum with all same values",
         "three sum returns empty for two element input",
-        "three sum with zeros"
+        "three sum with zeros",
+        "preserves the original array when finding triplets"
       ],
       "scaffold": {
         "js": "\n/**\n * Three Sum\n *\n * Given an array of integers `nums` and an integer `target`,\n * return all unique triplets [nums[i], nums[j], nums[k]] such that\n * nums[i] + nums[j] + nums[k] === target.\n *\n * No duplicate triplets allowed. Order within triplets doesn't matter.\n *\n * @param {number[]} nums\n * @param {number} target\n * @returns {number[][]}\n */\nfunction threeSum(nums, target) {\n  // TODO: implement\n}\n\nmodule.exports.threeSum = threeSum;\n",

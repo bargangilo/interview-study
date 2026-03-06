@@ -27,7 +27,9 @@
         "single budget with single price within budget",
         "duplicate prices returns highest affordable price",
         "selects most expensive affordable not first affordable",
-        "budget of zero with all positive prices returns negative one"
+        "budget of zero with all positive prices returns negative one",
+        "returns zero when a free seat is the best match",
+        "does not mutate the prices or budgets arrays"
       ],
       "scaffold": {
         "js": "/**\n * Find the best affordable seat for each customer budget.\n *\n * @param {number[]} prices - Available seat prices (unsorted)\n * @param {number[]} budgets - Customer budgets to check\n * @returns {number[]} For each budget, the highest price <= budget, or -1 if none\n */\nfunction findBestSeats(prices, budgets) {\n  // TODO: implement\n}\n\nmodule.exports = { findBestSeats };\n",

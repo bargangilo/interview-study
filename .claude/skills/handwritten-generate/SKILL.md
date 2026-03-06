@@ -181,6 +181,8 @@ Generates a complete interview problem — `problem.json`, `main.js`, `main.py`,
    - Output contract tests must use `toHaveLength` or equivalent to verify collection size separately from value checks.
    - Scale tests must assert a specific value at a specific index, not just that the function returns without crashing.
    - Adjacent boundary tests must exist for any boundary defined in the problem.
+   - Value domain: if any function stores or retrieves values from a collection, add at least one test where a stored value is a falsy non-null value appropriate to the problem domain (`""` for string values, `0` for numeric values, `false` for boolean values). This test must assert the correct falsy value is returned, not null. This catches the class of bugs where truthiness is used instead of existence checking.
+   - Reference semantics: for any function that takes a mutable input (object, array, map) and returns a new or modified version without being specified to mutate in place, add a test asserting the original input was not modified after the call. For any function that is specified to mutate its input in place, add a test asserting the mutation occurred correctly. Read the problem description to determine which case applies — when ambiguous, assume non-mutation and write the no-mutation test.
    - Test names must follow the naming standard from the authoring guide — behavioral descriptions, no output revelation (Rule 5).
    - Every test name in the suite file must exactly match the corresponding string in `problem.json activeTests` — character for character.
 
@@ -220,6 +222,9 @@ Generates a complete interview problem — `problem.json`, `main.js`, `main.py`,
    30. Did the adversarial check find any uncaught plausible wrong implementation? **Must be No — if Yes, add tests and recheck.**
    31. Does every test name describe a distinct behavioral scenario? **Must be Yes.**
    32. Does the description explicitly state all one-to-many relationships, output length contracts, boundary definitions, and null semantics that apply? **Must be Yes.**
+   33. For collection storage/retrieval problems: is there a test with a falsy non-null stored value (`""`, `0`, or `false`)? **Must be Yes if applicable.**
+   34. For functions taking mutable inputs not specified to mutate: is there a no-mutation test for every such function? **Must be Yes if applicable.**
+   35. For functions specified to mutate their inputs: is there a test verifying the mutation? **Must be Yes if applicable.**
 
    If any item fails, revise the relevant file(s) and re-check the failing item(s). Do not write files until every item passes.
 

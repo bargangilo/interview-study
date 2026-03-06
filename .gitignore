@@ -15,6 +15,7 @@ problems/*
 !problems/flatten-and-sum/
 !problems/best-available-seat/
 !problems/meeting-room-finder/
+!problems/short-code-registry/
 
 # Agent skill draft payloads
 .agents/.draft/*.json

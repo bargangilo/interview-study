@@ -178,4 +178,17 @@ describe("findRooms", () => {
     const requests = [{ start: 9, end: 10, minCapacity: 8 }];
     expect(mod.findRooms(rooms, bookings, requests)).toEqual(["B"]);
   });
+
+  test("does not mutate the input arrays", () => {
+    const rooms = [{ id: "A", capacity: 10 }, { id: "B", capacity: 20 }];
+    const bookings = [{ roomId: "A", start: 9, end: 11 }];
+    const requests = [{ start: 9, end: 10, minCapacity: 5 }];
+    const roomsSnapshot = JSON.parse(JSON.stringify(rooms));
+    const bookingsSnapshot = JSON.parse(JSON.stringify(bookings));
+    const requestsSnapshot = JSON.parse(JSON.stringify(requests));
+    mod.findRooms(rooms, bookings, requests);
+    expect(rooms).toEqual(roomsSnapshot);
+    expect(bookings).toEqual(bookingsSnapshot);
+    expect(requests).toEqual(requestsSnapshot);
+  });
 });

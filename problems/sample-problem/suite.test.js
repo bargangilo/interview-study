@@ -45,6 +45,13 @@ describe("twoSum", () => {
     expect(result.sort()).toEqual([0, 3]);
   });
 
+  test("preserves the original nums array", () => {
+    const nums = [2, 7, 11, 15];
+    const snapshot = [...nums];
+    mod.twoSum(nums, 9);
+    expect(nums).toEqual(snapshot);
+  });
+
   // --- Part 2: Two Sum — Optimized ---
 
   test("negative numbers", () => {
@@ -116,5 +123,12 @@ describe("threeSum", () => {
     const result = mod.threeSum([0, 0, 0, 0], 0);
     const sorted = result.map((t) => [...t].sort((a, b) => a - b));
     expect(sorted).toEqual([[0, 0, 0]]);
+  });
+
+  test("preserves the original array when finding triplets", () => {
+    const nums = [1, 2, 3, 4, 5];
+    const snapshot = [...nums];
+    mod.threeSum(nums, 9);
+    expect(nums).toEqual(snapshot);
   });
 });

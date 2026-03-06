@@ -36,6 +36,17 @@ describe("flattenArray", () => {
   test("preserves element order across nesting levels", () => {
     expect(mod.flattenArray([[3, 1], [4], [[1, 5]]])).toEqual([3, 1, 4, 1, 5]);
   });
+
+  test("preserves zero values in flattened output", () => {
+    expect(mod.flattenArray([0, [1, [0, 2]], 0])).toEqual([0, 1, 0, 2, 0]);
+  });
+
+  test("does not mutate the input array", () => {
+    const input = [1, [2, [3]], 4];
+    const snapshot = JSON.parse(JSON.stringify(input));
+    mod.flattenArray(input);
+    expect(input).toEqual(snapshot);
+  });
 });
 
 // ---- Part 2: sumNested ----
@@ -74,5 +85,12 @@ describe("sumNested", () => {
 
   test("single flat number", () => {
     expect(mod.sumNested([7])).toBe(7);
+  });
+
+  test("does not mutate the nested input", () => {
+    const input = [1, [2, [3]], 4];
+    const snapshot = JSON.parse(JSON.stringify(input));
+    mod.sumNested(input);
+    expect(input).toEqual(snapshot);
   });
 });

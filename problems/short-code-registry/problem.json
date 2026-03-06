@@ -1,0 +1,126 @@
+{
+  "title": "Short Code Registry",
+  "description": "Build a registry that maps short codes to their full values",
+  "topics": ["hash maps"],
+  "difficulty": {
+    "algorithmComplexity": 1,
+    "dataStructureComplexity": 2,
+    "problemComplexity": 2,
+    "overall": 2
+  },
+  "style": "real-world",
+  "expectedMinutes": 20,
+  "generatedBy": "agent",
+  "generatedAt": "2026-03-06T18:51:07.000Z",
+  "parts": [
+    {
+      "title": "Register and retrieve codes",
+      "description": "A system uses short codes as aliases for longer values \u2014 like a URL shortener's lookup layer or a configuration key store. Implement buildRegistry(entries) / build_registry(entries) that takes an array of [code, value] pairs and returns an object (or dictionary) mapping each code to its value. If a single code appears more than once in the entries array, only the first occurrence is kept \u2014 subsequent duplicates are ignored. Also implement lookupCode(registry, code) / lookup_code(registry, code) that takes a registry object and a code string, and returns the corresponding value, or null (None in Python) if the code is not in the registry.",
+      "activeTests": [
+        "builds registry from multiple entries",
+        "returns empty object for no entries",
+        "first occurrence wins for duplicate codes",
+        "single entry produces single mapping",
+        "retrieves value for registered code",
+        "returns null for unregistered code",
+        "retrieves from registry with many entries",
+        "handles code not in larger registry",
+        "retrieves empty string value for registered code"
+      ],
+      "scaffold": {
+        "js": "/**\n * Build a registry mapping short codes to their full values.\n *\n * @param {string[][]} entries - Array of [code, value] pairs\n * @returns {Object} Registry object mapping codes to values\n */\nfunction buildRegistry(entries) {\n  // TODO: implement\n}\n\n/**\n * Look up a code in the registry.\n *\n * @param {Object} registry - Registry object mapping codes to values\n * @param {string} code - The short code to look up\n * @returns {string|null} The value for the code, or null if not found\n */\nfunction lookupCode(registry, code) {\n  // TODO: implement\n}\n\nmodule.exports = { buildRegistry, lookupCode };\n",
+        "python": "\"\"\"\nBuild a registry mapping short codes to their full values.\n\"\"\"\n\n\ndef build_registry(entries: list[list[str]]) -> dict:\n    \"\"\"Build a registry from [code, value] pairs. First occurrence wins for duplicates.\"\"\"\n    pass\n\n\ndef lookup_code(registry: dict, code: str) -> str | None:\n    \"\"\"Look up a code in the registry. Returns None if not found.\"\"\"\n    pass\n"
+      },
+      "runInputs": [
+        {
+          "label": "three code registrations",
+          "language": "javascript",
+          "function": "buildRegistry",
+          "args": [[["gh", "github.com"], ["gl", "gitlab.com"], ["bb", "bitbucket.org"]]],
+          "expected": {"gh": "github.com", "gl": "gitlab.com", "bb": "bitbucket.org"}
+        },
+        {
+          "label": "three code registrations",
+          "language": "python",
+          "function": "build_registry",
+          "args": [[["gh", "github.com"], ["gl", "gitlab.com"], ["bb", "bitbucket.org"]]],
+          "expected": {"gh": "github.com", "gl": "gitlab.com", "bb": "bitbucket.org"}
+        },
+        {
+          "label": "duplicate code present",
+          "language": "javascript",
+          "function": "buildRegistry",
+          "args": [[["api", "api.example.com"], ["api", "api.backup.com"], ["web", "www.example.com"]]],
+          "expected": {"api": "api.example.com", "web": "www.example.com"}
+        },
+        {
+          "label": "duplicate code present",
+          "language": "python",
+          "function": "build_registry",
+          "args": [[["api", "api.example.com"], ["api", "api.backup.com"], ["web", "www.example.com"]]],
+          "expected": {"api": "api.example.com", "web": "www.example.com"}
+        }
+      ]
+    },
+    {
+      "title": "Batch import with conflict detection",
+      "description": "A second service needs to import codes in batches. Implement bulkRegister(registry, entries) / bulk_register(registry, entries) that takes an existing registry (a plain object or dictionary mapping codes to values) and an array of [code, value] pairs. For each entry, if the code does not yet exist in the registry, it is included in the result. If the code already exists, the existing value is preserved and the code is recorded as a conflict. A single code may appear more than once in the entries array; only the first new occurrence is added, and subsequent duplicates are treated as conflicts. Return an object (or dictionary) with two properties: registry (the merged result containing all original entries plus new non-conflicting entries) and conflicts (an array or list of codes that were skipped, in the order they were encountered in the entries array).",
+      "activeTests": [
+        "builds registry from multiple entries",
+        "returns empty object for no entries",
+        "first occurrence wins for duplicate codes",
+        "single entry produces single mapping",
+        "retrieves value for registered code",
+        "returns null for unregistered code",
+        "retrieves from registry with many entries",
+        "handles code not in larger registry",
+        "retrieves empty string value for registered code",
+        "merges new entries into existing registry",
+        "preserves existing value on conflict",
+        "reports conflicting codes",
+        "returns empty conflicts when no overlaps",
+        "empty additions returns original registry unchanged",
+        "empty base accepts all additions",
+        "handles multiple conflicts in one call",
+        "handles many additions efficiently",
+        "conflicts appear in encounter order",
+        "reports conflict for duplicate within additions",
+        "does not mutate the original registry"
+      ],
+      "scaffold": {
+        "js": "\n/**\n * Bulk register new entries into an existing registry.\n *\n * @param {Object} registry - Existing registry object\n * @param {string[][]} entries - Array of [code, value] pairs to add\n * @returns {{registry: Object, conflicts: string[]}} Merged registry and skipped codes\n */\nfunction bulkRegister(registry, entries) {\n  // TODO: implement\n}\n\nmodule.exports.bulkRegister = bulkRegister;\n",
+        "python": "\n\ndef bulk_register(registry: dict, entries: list[list[str]]) -> dict:\n    \"\"\"Bulk register entries into an existing registry. Returns dict with 'registry' and 'conflicts' keys.\"\"\"\n    pass\n"
+      },
+      "runInputs": [
+        {
+          "label": "mixed new and conflicting",
+          "language": "javascript",
+          "function": "bulkRegister",
+          "args": [{"gh": "github.com"}, [["gl", "gitlab.com"], ["gh", "github.io"]]],
+          "expected": {"registry": {"gh": "github.com", "gl": "gitlab.com"}, "conflicts": ["gh"]}
+        },
+        {
+          "label": "mixed new and conflicting",
+          "language": "python",
+          "function": "bulk_register",
+          "args": [{"gh": "github.com"}, [["gl", "gitlab.com"], ["gh", "github.io"]]],
+          "expected": {"registry": {"gh": "github.com", "gl": "gitlab.com"}, "conflicts": ["gh"]}
+        },
+        {
+          "label": "empty base registry",
+          "language": "javascript",
+          "function": "bulkRegister",
+          "args": [{}, [["api", "api.example.com"], ["cdn", "cdn.example.com"]]],
+          "expected": {"registry": {"api": "api.example.com", "cdn": "cdn.example.com"}, "conflicts": []}
+        },
+        {
+          "label": "empty base registry",
+          "language": "python",
+          "function": "bulk_register",
+          "args": [{}, [["api", "api.example.com"], ["cdn", "cdn.example.com"]]],
+          "expected": {"registry": {"api": "api.example.com", "cdn": "cdn.example.com"}, "conflicts": []}
+        }
+      ]
+    }
+  ]
+}

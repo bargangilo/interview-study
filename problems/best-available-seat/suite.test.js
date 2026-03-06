@@ -68,4 +68,20 @@ describe("findBestSeats", () => {
     const budgets = [0];
     expect(mod.findBestSeats(prices, budgets)).toEqual([-1]);
   });
+
+  test("returns zero when a free seat is the best match", () => {
+    const prices = [0, 50, 100];
+    const budgets = [0, 25];
+    expect(mod.findBestSeats(prices, budgets)).toEqual([0, 0]);
+  });
+
+  test("does not mutate the prices or budgets arrays", () => {
+    const prices = [50, 30, 80, 20, 60];
+    const budgets = [45, 70, 10];
+    const pricesSnapshot = [...prices];
+    const budgetsSnapshot = [...budgets];
+    mod.findBestSeats(prices, budgets);
+    expect(prices).toEqual(pricesSnapshot);
+    expect(budgets).toEqual(budgetsSnapshot);
+  });
 });

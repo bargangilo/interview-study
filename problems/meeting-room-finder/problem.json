@@ -36,7 +36,8 @@
         "adjacent intervals do not conflict",
         "room at exact capacity threshold is selected",
         "single request with no rooms returns null",
-        "unsorted rooms still assigns smallest fitting room"
+        "unsorted rooms still assigns smallest fitting room",
+        "does not mutate the input arrays"
       ],
       "scaffold": {
         "js": "/**\n * Find the best available meeting room for each request.\n *\n * @param {{id: string, capacity: number}[]} rooms - Available rooms\n * @param {{roomId: string, start: number, end: number}[]} bookings - Existing bookings\n * @param {{start: number, end: number, minCapacity: number}[]} requests - Meeting requests\n * @returns {(string|null)[]} Room ID for each request, or null if no room available\n */\nfunction findRooms(rooms, bookings, requests) {\n  // TODO: implement\n}\n\nmodule.exports = { findRooms };\n",
