@@ -93,13 +93,13 @@ export default function ConsoleOutput({ lines, visible, lastRunAt, testFailures 
               {i > 0 ? <Text>{" "}</Text> : null}
               <Text>{"  "}<Text color="red">{"\u2718"}</Text>{"  "}{failure.name}</Text>
               {failure.input != null ? (
-                <Text>{"     "}<Text dimColor>{"input:   "}</Text> {failure.input}</Text>
+                <Text dimColor>{"     "}{failure.input}</Text>
               ) : null}
               {failure.expected != null ? (
-                <Text>{"     "}<Text dimColor>expected:</Text> <Text color="green">{failure.expected}</Text></Text>
+                <Text>{"     "}<Text dimColor>expected:</Text> <Text color="green">{" "}{failure.expected}</Text></Text>
               ) : null}
               {failure.received != null ? (
-                <Text>{"     "}<Text dimColor>received:</Text> <Text color="red">{failure.received}</Text></Text>
+                <Text>{"     "}<Text dimColor>received:</Text> <Text color="red">{" "}{failure.received}</Text></Text>
               ) : null}
             </React.Fragment>
           ))}

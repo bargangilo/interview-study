@@ -54,7 +54,7 @@ Run inputs serve three roles. They populate the Examples section in the problem 
 
 | Field | Type | Required | Valid Values | Description |
 |---|---|---|---|---|
-| `label` | string | Yes | 2-5 word scenario name | Display name in the console panel and Examples section. Describes the scenario, not the expected output. |
+| `label` | string | Yes | 2-5 word scenario name | Display name in the console panel and Examples section. Describes the scenario, not the expected output. The `label` must exactly match the corresponding entry in `activeTests` for the same part when test failure correlation is desired — this match is used to display structured input data in the failure panel. |
 | `language` | string | Yes | `"javascript"` or `"python"` | The CLI filters by active session language at harness generation time. |
 | `function` | string | Yes | Exact exported function name | Must match the scaffold export character for character, including case. |
 | `args` | array | Yes | JSON-serializable values | Arguments passed to the function in order. Each element corresponds to one parameter. |

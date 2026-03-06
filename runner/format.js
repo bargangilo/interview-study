@@ -252,6 +252,122 @@ export function formatRunOutput(stdout, stderr) {
 }
 
 /**
+ * Correlates failed test names against runInputs and activeTests from problem.json.
+ * For matched failures, returns structured input/expected from runInputs directly.
+ * For unmatched failures, returns input: null, expected: null.
+ *
+ * @param {string[]} failedTestNames - test names that failed
+ * @param {object[]|null} runInputs - runInputs array from current part
+ * @param {string[]|null} activeTests - activeTests array from current part
+ * @param {string} language - "javascript" or "python"
+ * @returns {Array<{name: string, input: string|null, expected: string|null, runInputsMatched: boolean}>}
+ */
+export function correlateTestFailures(failedTestNames, runInputs, activeTests, language) {
+  if (!failedTestNames || failedTestNames.length === 0) return [];
+
+  return failedTestNames.map((name) => {
+    if (!activeTests || !Array.isArray(activeTests)) {
+      return { name, input: null, expected: null, runInputsMatched: false };
+    }
+
+    const activeIdx = activeTests.indexOf(name);
+    if (activeIdx === -1) {
+      return { name, input: null, expected: null, runInputsMatched: false };
+    }
+
+    if (!runInputs || !Array.isArray(runInputs)) {
+      return { name, input: null, expected: null, runInputsMatched: false };
+    }
+
+    const runInput = runInputs.find(
+      (ri) => ri.label === activeTests[activeIdx] && ri.language === language
+    );
+    if (!runInput) {
+      return { name, input: null, expected: null, runInputsMatched: false };
+    }
+
+    const input = truncate(
+      `${runInput.function}(${runInput.args.map((a) => JSON.stringify(a)).join(", ")})`
+    );
+    const expected = truncate(JSON.stringify(runInput.expected));
+    return { name, input, expected, runInputsMatched: true };
+  });
+}
+
+/**
+ * Parses pytest --tb=short stdout into structured test failure objects.
+ * Never throws — returns [] for null or unparseable input.
+ *
+ * Pytest --tb=short failure format (observed):
+ *   __________________ test_name __________________
+ *   file.py:N: in test_name
+ *       assert result == expected
+ *   E   AssertionError: assert None == {'key': 'value'}
+ *   — or without AssertionError prefix: —
+ *   E   assert None == {}
+ *
+ * FAILED lines at bottom:
+ *   FAILED file.py::test_name
+ *
+ * @param {string|null} pytestStdout - raw pytest stdout
+ * @returns {Array<{name: string, received: string|null, expected: string|null}>}
+ */
+export function parsePytestFailures(pytestStdout) {
+  if (!pytestStdout) return [];
+
+  const lines = pytestStdout.split("\n");
+  const failures = [];
+  let currentTestName = null;
+
+  for (const line of lines) {
+    // Test failure header: "_______ test_name _______"
+    const headerMatch = line.match(/^_{3,}\s+(\S+)\s+_{3,}$/);
+    if (headerMatch) {
+      currentTestName = headerMatch[1];
+      continue;
+    }
+
+    if (currentTestName) {
+      // Match "E   AssertionError: assert X == Y" or "E   assert X == Y"
+      const assertMatch = line.match(
+        /^E\s+(?:AssertionError:\s*)?assert\s+(.+?)\s+==\s+(.+)$/
+      );
+      if (assertMatch) {
+        const name = currentTestName.replace(/^test_/, "").replace(/_/g, " ");
+        failures.push({
+          name,
+          received: truncate(assertMatch[1].trim()),
+          expected: truncate(assertMatch[2].trim()),
+        });
+        currentTestName = null;
+        continue;
+      }
+
+      // Simple AssertionError with no == comparison
+      if (/^E\s+AssertionError/.test(line)) {
+        const name = currentTestName.replace(/^test_/, "").replace(/_/g, " ");
+        failures.push({ name, received: null, expected: null });
+        currentTestName = null;
+        continue;
+      }
+    }
+  }
+
+  // Fallback: if no failures parsed from headers, try FAILED summary lines
+  if (failures.length === 0) {
+    for (const line of lines) {
+      const failedMatch = line.match(/^FAILED\s+\S+::(\S+)/);
+      if (failedMatch) {
+        const name = failedMatch[1].replace(/^test_/, "").replace(/_/g, " ");
+        failures.push({ name, received: null, expected: null });
+      }
+    }
+  }
+
+  return failures;
+}
+
+/**
  * Formats per-problem stats as a display string.
  */
 export function formatProblemStats(problemName, stats) {

@@ -494,6 +494,114 @@ describe("reducer", () => {
     expect(state.testFailures).toBe(existingFailures);
   });
 
+  // --- Test result correlation ---
+
+  test("TEST_RESULT_RECEIVED with Jest JSON and runInputs populates correlated testFailures", () => {
+    const jestJson = JSON.stringify({
+      testResults: [{
+        testFilePath: "/test.js",
+        assertionResults: [
+          {
+            status: "failed",
+            title: "retrieves value",
+            failureMessages: ["expect(received).toEqual(expected)\n\nExpected: \"github.com\"\nReceived: null"],
+          },
+        ],
+      }],
+    });
+    const state = reducer(initialState, {
+      type: Action.TEST_RESULT_RECEIVED,
+      jestJson,
+      runInputs: [
+        { label: "retrieves value", language: "javascript", function: "lookupCode", args: [{ gh: "github.com" }, "gh"], expected: "github.com" },
+      ],
+      activeTests: ["retrieves value"],
+      language: "javascript",
+    });
+    expect(state.testFailures).toHaveLength(1);
+    expect(state.testFailures[0].runInputsMatched).toBe(true);
+    expect(state.testFailures[0].input).toBe('lookupCode({"gh":"github.com"}, "gh")');
+    expect(state.testFailures[0].expected).toBe('"github.com"');
+    expect(state.testFailures[0].received).toBe("null");
+  });
+
+  test("TEST_RESULT_RECEIVED with pytestStdout populates correlated testFailures", () => {
+    const pytestStdout = [
+      "__________________ test_retrieves_value __________________",
+      "suite.test.py:13: in test_retrieves_value",
+      "    assert result == 'github.com'",
+      "E   AssertionError: assert None == 'github.com'",
+      "=========================== short test summary info ===========================",
+      "FAILED suite.test.py::test_retrieves_value",
+    ].join("\n");
+    const state = reducer(initialState, {
+      type: Action.TEST_RESULT_RECEIVED,
+      jestJson: null,
+      pytestStdout,
+      runInputs: [
+        { label: "retrieves value", language: "python", function: "lookup_code", args: [{ gh: "github.com" }, "gh"], expected: "github.com" },
+      ],
+      activeTests: ["retrieves value"],
+      language: "python",
+    });
+    expect(state.testFailures).toHaveLength(1);
+    expect(state.testFailures[0].runInputsMatched).toBe(true);
+    expect(state.testFailures[0].input).toBe('lookup_code({"gh":"github.com"}, "gh")');
+    expect(state.testFailures[0].expected).toBe('"github.com"');
+    expect(state.testFailures[0].received).toBe("None");
+  });
+
+  test("TEST_RESULT_RECEIVED correlated entries for runInputsMatched true have non-null input and expected", () => {
+    const jestJson = JSON.stringify({
+      testResults: [{
+        testFilePath: "/test.js",
+        assertionResults: [
+          {
+            status: "failed",
+            title: "my test",
+            failureMessages: ["expect(received).toEqual(expected)\n\nExpected: 1\nReceived: 2"],
+          },
+        ],
+      }],
+    });
+    const state = reducer(initialState, {
+      type: Action.TEST_RESULT_RECEIVED,
+      jestJson,
+      runInputs: [{ label: "my test", language: "javascript", function: "fn", args: [42], expected: 1 }],
+      activeTests: ["my test"],
+      language: "javascript",
+    });
+    expect(state.testFailures[0].runInputsMatched).toBe(true);
+    expect(state.testFailures[0].input).not.toBeNull();
+    expect(state.testFailures[0].expected).not.toBeNull();
+  });
+
+  test("TEST_RESULT_RECEIVED entries for unmatched tests have runInputsMatched false", () => {
+    const jestJson = JSON.stringify({
+      testResults: [{
+        testFilePath: "/test.js",
+        assertionResults: [
+          {
+            status: "failed",
+            title: "unmatched test",
+            failureMessages: ["expect(received).toEqual(expected)\n\nExpected: 1\nReceived: 2"],
+          },
+        ],
+      }],
+    });
+    const state = reducer(initialState, {
+      type: Action.TEST_RESULT_RECEIVED,
+      jestJson,
+      runInputs: [{ label: "other test", language: "javascript", function: "fn", args: [1], expected: 1 }],
+      activeTests: ["other test"],
+      language: "javascript",
+    });
+    expect(state.testFailures[0].runInputsMatched).toBe(false);
+    expect(state.testFailures[0].input).toBeNull();
+    expect(state.testFailures[0].expected).toBe("1");
+    expect(state.testFailures[0].received).toBe("2");
+  });
+
   // --- RUN_TESTS ---
 
   test("RUN_TESTS does not change state", () => {

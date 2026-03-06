@@ -259,7 +259,14 @@ export default function SessionActive({
           timeoutSeconds: result.timeoutSeconds || null,
           exitCode: result.exitCode || null,
         });
-        dispatch({ type: Action.TEST_RESULT_RECEIVED, jestJson: result.jestJson || null });
+        dispatch({
+          type: Action.TEST_RESULT_RECEIVED,
+          jestJson: result.jestJson || null,
+          pytestStdout: result.pytestStdout || null,
+          runInputs: result.runInputs || null,
+          activeTests: result.activeTests || null,
+          language: result.language || null,
+        });
         if (result.partInfo) setPartInfo(result.partInfo);
         setErrorMessage(null);
       },

@@ -30,7 +30,7 @@ function parsePytestOutput(stdout) {
   const failMatch = stdout.match(/(\d+) failed/);
   const passed = passMatch ? parseInt(passMatch[1], 10) : 0;
   const failed = failMatch ? parseInt(failMatch[1], 10) : 0;
-  return { passed, total: passed + failed };
+  return { passed, total: passed + failed, pytestStdout: stdout };
 }
 
 /**
@@ -98,7 +98,7 @@ async function runTestSuite(problem, language, rootDir, testFilter, runnerConfig
       ? path.join(rootDir, "problems", problem, "suite.test.py")
       : path.join(rootDir, "problems", problem, "test_sample.py");
     cmd = "pytest";
-    args = [testFile, "-v"];
+    args = [testFile, "-v", "--tb=short"];
     if (testFilter) {
       args.push("-k", testFilter, "--import-mode=importlib");
     }
@@ -358,7 +358,15 @@ export function startWatching(problem, language, rootDir, config, startPart, tim
           unlocked: currentPart + 1,
         };
         if (callbacks.onTestResult) {
-          callbacks.onTestResult({ ...result, timestamp: lastTimestamp, partInfo: lastPartInfo });
+          const langKey = language === "JavaScript" ? "javascript" : "python";
+          callbacks.onTestResult({
+            ...result,
+            timestamp: lastTimestamp,
+            partInfo: lastPartInfo,
+            activeTests: config.parts[currentPart].activeTests,
+            runInputs: config.parts[currentPart].runInputs || null,
+            language: langKey,
+          });
         }
 
         if (result.passed === result.total && result.total > 0) {

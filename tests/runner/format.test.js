@@ -6,6 +6,8 @@ import {
   formatProblemStats,
   formatRunOutput,
   parseTestFailures,
+  correlateTestFailures,
+  parsePytestFailures,
 } from "../../runner/format.js";
 
 // Strip ANSI escape codes for content assertions
@@ -533,6 +535,250 @@ describe("parseTestFailures", () => {
     expect(result[0].expected).toBeNull();
     expect(result[0].received).toBeNull();
     expect(result[0].input).toBeNull();
+  });
+});
+
+// --- correlateTestFailures ---
+
+describe("correlateTestFailures", () => {
+  const activeTests = [
+    "retrieves value for registered code",
+    "returns null for unregistered code",
+    "builds registry from entries",
+  ];
+  const runInputs = [
+    {
+      label: "retrieves value for registered code",
+      language: "javascript",
+      function: "lookupCode",
+      args: [{ gh: "github.com", gl: "gitlab.com" }, "gh"],
+      expected: "github.com",
+    },
+    {
+      label: "retrieves value for registered code",
+      language: "python",
+      function: "lookup_code",
+      args: [{ gh: "github.com", gl: "gitlab.com" }, "gh"],
+      expected: "github.com",
+    },
+    {
+      label: "returns null for unregistered code",
+      language: "javascript",
+      function: "lookupCode",
+      args: [{ gh: "github.com" }, "xyz"],
+      expected: null,
+    },
+  ];
+
+  test("returns matched entry with formatted function call string", () => {
+    const result = correlateTestFailures(
+      ["retrieves value for registered code"],
+      runInputs,
+      activeTests,
+      "javascript"
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe("retrieves value for registered code");
+    expect(result[0].input).toBe('lookupCode({"gh":"github.com","gl":"gitlab.com"}, "gh")');
+    expect(result[0].expected).toBe('"github.com"');
+    expect(result[0].runInputsMatched).toBe(true);
+  });
+
+  test("formats multi-argument function call correctly", () => {
+    const result = correlateTestFailures(
+      ["returns null for unregistered code"],
+      runInputs,
+      activeTests,
+      "javascript"
+    );
+    expect(result[0].input).toBe('lookupCode({"gh":"github.com"}, "xyz")');
+    expect(result[0].expected).toBe("null");
+    expect(result[0].runInputsMatched).toBe(true);
+  });
+
+  test("formats object argument correctly via JSON.stringify", () => {
+    const ri = [{
+      label: "test",
+      language: "javascript",
+      function: "fn",
+      args: [{ a: 1, b: [2, 3] }],
+      expected: true,
+    }];
+    const result = correlateTestFailures(["test"], ri, ["test"], "javascript");
+    expect(result[0].input).toBe('fn({"a":1,"b":[2,3]})');
+    expect(result[0].expected).toBe("true");
+  });
+
+  test("filters runInputs by language — javascript entry not matched for python", () => {
+    const result = correlateTestFailures(
+      ["returns null for unregistered code"],
+      runInputs,
+      activeTests,
+      "python"
+    );
+    // "returns null for unregistered code" has no python runInput
+    expect(result[0].runInputsMatched).toBe(false);
+    expect(result[0].input).toBeNull();
+  });
+
+  test("returns runInputsMatched false for test name not in activeTests", () => {
+    const result = correlateTestFailures(
+      ["unknown test name"],
+      runInputs,
+      activeTests,
+      "javascript"
+    );
+    expect(result[0].runInputsMatched).toBe(false);
+    expect(result[0].input).toBeNull();
+    expect(result[0].expected).toBeNull();
+  });
+
+  test("returns runInputsMatched false for test name in activeTests but no matching runInputs label", () => {
+    const result = correlateTestFailures(
+      ["builds registry from entries"],
+      runInputs,
+      activeTests,
+      "javascript"
+    );
+    expect(result[0].runInputsMatched).toBe(false);
+  });
+
+  test("truncates input at 200 chars with ellipsis", () => {
+    const longArg = "x".repeat(250);
+    const ri = [{
+      label: "test",
+      language: "javascript",
+      function: "fn",
+      args: [longArg],
+      expected: 1,
+    }];
+    const result = correlateTestFailures(["test"], ri, ["test"], "javascript");
+    expect(result[0].input.length).toBe(201);
+    expect(result[0].input.endsWith("\u2026")).toBe(true);
+  });
+
+  test("truncates expected at 200 chars with ellipsis", () => {
+    const longExpected = "y".repeat(250);
+    const ri = [{
+      label: "test",
+      language: "javascript",
+      function: "fn",
+      args: [1],
+      expected: longExpected,
+    }];
+    const result = correlateTestFailures(["test"], ri, ["test"], "javascript");
+    expect(result[0].expected.length).toBe(201);
+    expect(result[0].expected.endsWith("\u2026")).toBe(true);
+  });
+
+  test("handles empty failedTestNames — returns []", () => {
+    expect(correlateTestFailures([], runInputs, activeTests, "javascript")).toEqual([]);
+  });
+
+  test("handles null runInputs — returns entries with runInputsMatched false", () => {
+    const result = correlateTestFailures(
+      ["retrieves value for registered code"],
+      null,
+      activeTests,
+      "javascript"
+    );
+    expect(result[0].runInputsMatched).toBe(false);
+  });
+
+  test("handles null activeTests — returns entries with runInputsMatched false", () => {
+    const result = correlateTestFailures(
+      ["retrieves value for registered code"],
+      runInputs,
+      null,
+      "javascript"
+    );
+    expect(result[0].runInputsMatched).toBe(false);
+  });
+
+  test("does not throw for any null/undefined input", () => {
+    expect(() => correlateTestFailures(null, null, null, "javascript")).not.toThrow();
+    expect(() => correlateTestFailures(undefined, undefined, undefined, undefined)).not.toThrow();
+    expect(correlateTestFailures(null, null, null, "javascript")).toEqual([]);
+  });
+});
+
+// --- parsePytestFailures ---
+
+describe("parsePytestFailures", () => {
+  test("returns [] for null input", () => {
+    expect(parsePytestFailures(null)).toEqual([]);
+  });
+
+  test("returns [] for empty string", () => {
+    expect(parsePytestFailures("")).toEqual([]);
+  });
+
+  test("extracts test name and values from AssertionError line", () => {
+    const stdout = [
+      "__________________ test_builds_registry __________________",
+      "suite.test.py:13: in test_builds_registry",
+      '    assert result == {"gh": "github.com"}',
+      "E   AssertionError: assert None == {'gh': 'github.com'}",
+    ].join("\n");
+    const result = parsePytestFailures(stdout);
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe("builds registry");
+    expect(result[0].received).toBe("None");
+    expect(result[0].expected).toBe("{'gh': 'github.com'}");
+  });
+
+  test("extracts from assert line without AssertionError prefix", () => {
+    const stdout = [
+      "__________________ test_returns_empty __________________",
+      "suite.test.py:18: in test_returns_empty",
+      "    assert build_registry([]) == {}",
+      "E   assert None == {}",
+    ].join("\n");
+    const result = parsePytestFailures(stdout);
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe("returns empty");
+    expect(result[0].received).toBe("None");
+    expect(result[0].expected).toBe("{}");
+  });
+
+  test("strips test_ prefix and replaces underscores with spaces in name", () => {
+    const stdout = [
+      "__________________ test_first_occurrence_wins __________________",
+      "suite.test.py:24: in test_first_occurrence_wins",
+      "    assert result == expected",
+      "E   AssertionError: assert None == {'api': 'primary'}",
+    ].join("\n");
+    const result = parsePytestFailures(stdout);
+    expect(result[0].name).toBe("first occurrence wins");
+  });
+
+  test("handles multiple failures", () => {
+    const stdout = [
+      "__________________ test_case_one __________________",
+      "file.py:1: in test_case_one",
+      "    assert fn() == 1",
+      "E   assert None == 1",
+      "__________________ test_case_two __________________",
+      "file.py:5: in test_case_two",
+      "    assert fn() == 2",
+      "E   AssertionError: assert 0 == 2",
+    ].join("\n");
+    const result = parsePytestFailures(stdout);
+    expect(result).toHaveLength(2);
+    expect(result[0].name).toBe("case one");
+    expect(result[1].name).toBe("case two");
+  });
+
+  test("falls back to FAILED summary lines when no headers found", () => {
+    const stdout = [
+      "FAILED suite.test.py::test_builds_registry_from_entries",
+      "FAILED suite.test.py::test_returns_null",
+    ].join("\n");
+    const result = parsePytestFailures(stdout);
+    expect(result).toHaveLength(2);
+    expect(result[0].name).toBe("builds registry from entries");
+    expect(result[1].name).toBe("returns null");
+    expect(result[0].received).toBeNull();
   });
 });
 
