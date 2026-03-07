@@ -253,45 +253,64 @@ export function formatRunOutput(stdout, stderr) {
 
 /**
  * Correlates failed test names against runInputs and activeTests from problem.json.
- * For matched failures, returns structured input/expected from runInputs directly.
- * For unmatched failures, returns input: null, expected: null.
+ * Uses three-tier matching:
+ *   Tier 1 — exact label match between activeTests entry and runInputs label
+ *   Tier 2 — index match when language-filtered runInputs length equals activeTests length
+ *   Tier 3 — no match (fallback to test runner output)
  *
  * @param {string[]} failedTestNames - test names that failed
  * @param {object[]|null} runInputs - runInputs array from current part
  * @param {string[]|null} activeTests - activeTests array from current part
  * @param {string} language - "javascript" or "python"
- * @returns {Array<{name: string, input: string|null, expected: string|null, runInputsMatched: boolean}>}
+ * @returns {Array<{name: string, input: string|null, expected: string|null, runInputsMatched: boolean, matchTier: number}>}
  */
 export function correlateTestFailures(failedTestNames, runInputs, activeTests, language) {
   if (!failedTestNames || failedTestNames.length === 0) return [];
 
+  const noMatch = (name) => ({ name, input: null, expected: null, runInputsMatched: false, matchTier: 3 });
+
+  const hasActiveTests = activeTests && Array.isArray(activeTests);
+  const hasRunInputs = runInputs && Array.isArray(runInputs);
+
+  // Pre-filter runInputs by language for Tier 2 length comparison
+  const langFiltered = hasRunInputs ? runInputs.filter((ri) => ri.language === language) : [];
+  const indexAligned = hasActiveTests && langFiltered.length === activeTests.length;
+
   return failedTestNames.map((name) => {
-    if (!activeTests || !Array.isArray(activeTests)) {
-      return { name, input: null, expected: null, runInputsMatched: false };
-    }
+    if (!hasActiveTests) return noMatch(name);
 
     const activeIdx = activeTests.indexOf(name);
-    if (activeIdx === -1) {
-      return { name, input: null, expected: null, runInputsMatched: false };
-    }
+    if (activeIdx === -1) return noMatch(name);
 
-    if (!runInputs || !Array.isArray(runInputs)) {
-      return { name, input: null, expected: null, runInputsMatched: false };
-    }
+    if (!hasRunInputs) return noMatch(name);
 
-    const runInput = runInputs.find(
+    // Tier 1: exact label match
+    const labelMatch = runInputs.find(
       (ri) => ri.label === activeTests[activeIdx] && ri.language === language
     );
-    if (!runInput) {
-      return { name, input: null, expected: null, runInputsMatched: false };
+    if (labelMatch) {
+      return formatRunInput(name, labelMatch, 1);
     }
 
-    const input = truncate(
-      `${runInput.function}(${runInput.args.map((a) => JSON.stringify(a)).join(", ")})`
-    );
-    const expected = truncate(JSON.stringify(runInput.expected));
-    return { name, input, expected, runInputsMatched: true };
+    // Tier 2: index match (only when arrays are the same length)
+    if (indexAligned) {
+      const indexMatch = langFiltered[activeIdx];
+      if (indexMatch) {
+        return formatRunInput(name, indexMatch, 2);
+      }
+    }
+
+    // Tier 3: no match
+    return noMatch(name);
   });
+}
+
+function formatRunInput(name, runInput, matchTier) {
+  const input = truncate(
+    `${runInput.function}(${runInput.args.map((a) => JSON.stringify(a)).join(", ")})`
+  );
+  const expected = truncate(JSON.stringify(runInput.expected));
+  return { name, input, expected, runInputsMatched: true, matchTier };
 }
 
 /**

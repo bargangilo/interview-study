@@ -271,7 +271,9 @@ export function reducer(state, action) {
         lang
       );
 
-      // Merge received values from test runner output into correlated results
+      // Merge test runner output into correlated results:
+      // - matched: use runInputs input/expected, runner's received
+      // - unmatched: use runner's input (code frame), expected, and received
       const testFailures = correlated.map((c) => {
         const source = sourceFailures.find((s) => s.name === c.name);
         if (c.runInputsMatched) {
@@ -279,6 +281,7 @@ export function reducer(state, action) {
         }
         return {
           ...c,
+          input: source?.input || null,
           expected: source?.expected || null,
           received: source?.received || null,
         };

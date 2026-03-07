@@ -450,6 +450,7 @@ Run through this checklist before writing any files. Every answer must match the
 20. Is the run inputs count 2-3 per part? **Must be Yes.**
 21. Does every generated `runInputs` entry include an `expected` field? **Must be Yes.**
 22. For "both" language config: does each scenario have matching JS and Python entries with correct naming conventions? **Must be Yes if applicable.**
+23a. Do `runInputs` labels exactly match their corresponding `activeTests` entries? Labels must be identical strings — not paraphrases. Exact label matching enables Tier 1 correlation in the test failure display. If labels don't match, the system falls back to index matching (requires array length equality) or no correlation. **Must be Yes.**
 23. Does the suite have at least 8 tests for each non-trivial part? **Must be Yes.**
 24. Does the suite have at least 2 structurally distinct happy path tests per part? **Must be Yes.**
 25. Is there a test that verifies output length or shape invariance for any collection-returning function? **Must be Yes if applicable.**

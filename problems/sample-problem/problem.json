@@ -33,14 +33,14 @@
       },
       "runInputs": [
         {
-          "label": "small array",
+          "label": "basic case",
           "language": "javascript",
           "function": "twoSum",
           "args": [[1, 5, 3, 7], 8],
           "expected": [0, 3]
         },
         {
-          "label": "different target",
+          "label": "pair in the middle of a larger array",
           "language": "javascript",
           "function": "twoSum",
           "args": [[4, 3, 8, 1, 6], 9],
@@ -70,14 +70,14 @@
       },
       "runInputs": [
         {
-          "label": "negative and positive mix",
+          "label": "negative numbers",
           "language": "javascript",
           "function": "twoSum",
           "args": [[-3, 1, 4, -1], 0],
           "expected": [1, 3]
         },
         {
-          "label": "larger values",
+          "label": "large input",
           "language": "javascript",
           "function": "twoSum",
           "args": [[10, 20, 30, 40, 50], 90],
@@ -116,14 +116,14 @@
       },
       "runInputs": [
         {
-          "label": "single triplet",
+          "label": "basic three sum",
           "language": "javascript",
           "function": "threeSum",
           "args": [[1, 2, 8, 4, 5], 7],
           "expected": [[1, 2, 4]]
         },
         {
-          "label": "larger target",
+          "label": "three sum single valid triplet",
           "language": "javascript",
           "function": "threeSum",
           "args": [[3, 7, 2, 5, 1], 15],

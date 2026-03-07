@@ -34,14 +34,14 @@
       },
       "runInputs": [
         {
-          "label": "mixed nesting",
+          "label": "mixed depth",
           "language": "javascript",
           "function": "flattenArray",
           "args": [[1, [2, 3], [4, [5]]]],
           "expected": [1, 2, 3, 4, 5]
         },
         {
-          "label": "nested pairs",
+          "label": "deep nesting",
           "language": "javascript",
           "function": "flattenArray",
           "args": [[[1, [2]], 3, [[4]]]],
@@ -79,14 +79,14 @@
       },
       "runInputs": [
         {
-          "label": "four levels deep",
+          "label": "single number nested deep",
           "language": "javascript",
           "function": "sumNested",
           "args": [[1, [2, [3, [4]]]]],
           "expected": 10
         },
         {
-          "label": "grouped tens",
+          "label": "multiple numbers across depths",
           "language": "javascript",
           "function": "sumNested",
           "args": [[[10], [20, [30]]]],

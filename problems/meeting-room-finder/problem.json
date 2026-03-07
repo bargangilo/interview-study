@@ -45,7 +45,7 @@
       },
       "runInputs": [
         {
-          "label": "booking conflict",
+          "label": "skips booked rooms during requested time",
           "language": "javascript",
           "function": "findRooms",
           "args": [
@@ -56,7 +56,7 @@
           "expected": ["L", "S"]
         },
         {
-          "label": "smallest available",
+          "label": "assigns smallest room that fits",
           "language": "javascript",
           "function": "findRooms",
           "args": [

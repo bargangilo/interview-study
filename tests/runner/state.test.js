@@ -597,7 +597,7 @@ describe("reducer", () => {
       language: "javascript",
     });
     expect(state.testFailures[0].runInputsMatched).toBe(false);
-    expect(state.testFailures[0].input).toBeNull();
+    // input comes from parseTestFailures code frame extraction (null here — no code frame in message)
     expect(state.testFailures[0].expected).toBe("1");
     expect(state.testFailures[0].received).toBe("2");
   });

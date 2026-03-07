@@ -212,6 +212,7 @@ Generates a complete interview problem — `problem.json`, `main.js`, `main.py`,
    20. Is the run inputs count 2-3 per part? **Must be Yes.**
    21. Does every generated `runInputs` entry include an `expected` field? **Must be Yes.**
    22. For "both" language config: does each scenario have matching JS and Python entries with correct naming conventions? **Must be Yes if applicable.**
+   22a. Do `runInputs` labels exactly match their corresponding `activeTests` entries? Labels must be identical strings — not paraphrases. Exact label matching enables Tier 1 correlation in the test failure display. If labels don't match, the system falls back to index matching (requires array length equality) or no correlation. **Must be Yes.**
    23. Does every part have at least 8 tests? **Must be Yes — if No, add tests before proceeding.**
    24. Are there at least 2 structurally distinct happy path tests per part? **Must be Yes.**
    25. Is there a test verifying output length/shape for any collection-returning function? **Must be Yes if applicable.**

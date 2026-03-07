@@ -33,28 +33,28 @@
       },
       "runInputs": [
         {
-          "label": "three code registrations",
+          "label": "builds registry from multiple entries",
           "language": "javascript",
           "function": "buildRegistry",
           "args": [[["gh", "github.com"], ["gl", "gitlab.com"], ["bb", "bitbucket.org"]]],
           "expected": {"gh": "github.com", "gl": "gitlab.com", "bb": "bitbucket.org"}
         },
         {
-          "label": "three code registrations",
+          "label": "builds registry from multiple entries",
           "language": "python",
           "function": "build_registry",
           "args": [[["gh", "github.com"], ["gl", "gitlab.com"], ["bb", "bitbucket.org"]]],
           "expected": {"gh": "github.com", "gl": "gitlab.com", "bb": "bitbucket.org"}
         },
         {
-          "label": "duplicate code present",
+          "label": "first occurrence wins for duplicate codes",
           "language": "javascript",
           "function": "buildRegistry",
           "args": [[["api", "api.example.com"], ["api", "api.backup.com"], ["web", "www.example.com"]]],
           "expected": {"api": "api.example.com", "web": "www.example.com"}
         },
         {
-          "label": "duplicate code present",
+          "label": "first occurrence wins for duplicate codes",
           "language": "python",
           "function": "build_registry",
           "args": [[["api", "api.example.com"], ["api", "api.backup.com"], ["web", "www.example.com"]]],
@@ -93,28 +93,28 @@
       },
       "runInputs": [
         {
-          "label": "mixed new and conflicting",
+          "label": "reports conflicting codes",
           "language": "javascript",
           "function": "bulkRegister",
           "args": [{"gh": "github.com"}, [["gl", "gitlab.com"], ["gh", "github.io"]]],
           "expected": {"registry": {"gh": "github.com", "gl": "gitlab.com"}, "conflicts": ["gh"]}
         },
         {
-          "label": "mixed new and conflicting",
+          "label": "reports conflicting codes",
           "language": "python",
           "function": "bulk_register",
           "args": [{"gh": "github.com"}, [["gl", "gitlab.com"], ["gh", "github.io"]]],
           "expected": {"registry": {"gh": "github.com", "gl": "gitlab.com"}, "conflicts": ["gh"]}
         },
         {
-          "label": "empty base registry",
+          "label": "empty base accepts all additions",
           "language": "javascript",
           "function": "bulkRegister",
           "args": [{}, [["api", "api.example.com"], ["cdn", "cdn.example.com"]]],
           "expected": {"registry": {"api": "api.example.com", "cdn": "cdn.example.com"}, "conflicts": []}
         },
         {
-          "label": "empty base registry",
+          "label": "empty base accepts all additions",
           "language": "python",
           "function": "bulk_register",
           "args": [{}, [["api", "api.example.com"], ["cdn", "cdn.example.com"]]],

@@ -616,9 +616,10 @@ describe("correlateTestFailures", () => {
       activeTests,
       "python"
     );
-    // "returns null for unregistered code" has no python runInput
+    // "returns null for unregistered code" has no python runInput, and array lengths differ
     expect(result[0].runInputsMatched).toBe(false);
     expect(result[0].input).toBeNull();
+    expect(result[0].matchTier).toBe(3);
   });
 
   test("returns runInputsMatched false for test name not in activeTests", () => {
@@ -631,6 +632,7 @@ describe("correlateTestFailures", () => {
     expect(result[0].runInputsMatched).toBe(false);
     expect(result[0].input).toBeNull();
     expect(result[0].expected).toBeNull();
+    expect(result[0].matchTier).toBe(3);
   });
 
   test("returns runInputsMatched false for test name in activeTests but no matching runInputs label", () => {
@@ -699,6 +701,87 @@ describe("correlateTestFailures", () => {
     expect(() => correlateTestFailures(null, null, null, "javascript")).not.toThrow();
     expect(() => correlateTestFailures(undefined, undefined, undefined, undefined)).not.toThrow();
     expect(correlateTestFailures(null, null, null, "javascript")).toEqual([]);
+  });
+
+  // --- Tier-specific tests ---
+
+  test("Tier 1 match used when label matches exactly — matchTier 1", () => {
+    const result = correlateTestFailures(
+      ["retrieves value for registered code"],
+      runInputs,
+      activeTests,
+      "javascript"
+    );
+    expect(result[0].matchTier).toBe(1);
+    expect(result[0].runInputsMatched).toBe(true);
+  });
+
+  test("Tier 2 match used when label does not match but arrays are same length — matchTier 2", () => {
+    // 3 activeTests, 3 language-filtered runInputs (labels differ)
+    const at = ["test A", "test B", "test C"];
+    const ri = [
+      { label: "scenario X", language: "javascript", function: "fn", args: [1], expected: 10 },
+      { label: "scenario Y", language: "javascript", function: "fn", args: [2], expected: 20 },
+      { label: "scenario Z", language: "javascript", function: "fn", args: [3], expected: 30 },
+    ];
+    const result = correlateTestFailures(["test B"], ri, at, "javascript");
+    expect(result[0].matchTier).toBe(2);
+    expect(result[0].runInputsMatched).toBe(true);
+    expect(result[0].input).toBe("fn(2)");
+    expect(result[0].expected).toBe("20");
+  });
+
+  test("Tier 2 skipped when language-filtered runInputs length differs from activeTests length — falls to Tier 3", () => {
+    // 3 activeTests, but only 2 javascript runInputs (lengths differ)
+    const at = ["test A", "test B", "test C"];
+    const ri = [
+      { label: "scenario X", language: "javascript", function: "fn", args: [1], expected: 10 },
+      { label: "scenario Y", language: "javascript", function: "fn", args: [2], expected: 20 },
+    ];
+    const result = correlateTestFailures(["test B"], ri, at, "javascript");
+    expect(result[0].matchTier).toBe(3);
+    expect(result[0].runInputsMatched).toBe(false);
+    expect(result[0].input).toBeNull();
+  });
+
+  test("Tier 3 returned when neither label nor index match is valid — runInputsMatched false", () => {
+    const result = correlateTestFailures(
+      ["unknown test"],
+      runInputs,
+      activeTests,
+      "javascript"
+    );
+    expect(result[0].runInputsMatched).toBe(false);
+    expect(result[0].matchTier).toBe(3);
+    expect(result[0].input).toBeNull();
+    expect(result[0].expected).toBeNull();
+  });
+
+  test("Tier 1 takes priority over Tier 2 even when index would also produce a valid match", () => {
+    // Label matches for test A at index 0, so Tier 1 should be used even though
+    // arrays are same length (Tier 2 would also work)
+    const at = ["test A", "test B"];
+    const ri = [
+      { label: "test A", language: "javascript", function: "fn", args: [1], expected: 10 },
+      { label: "test B", language: "javascript", function: "fn", args: [2], expected: 20 },
+    ];
+    const result = correlateTestFailures(["test A"], ri, at, "javascript");
+    expect(result[0].matchTier).toBe(1);
+    expect(result[0].runInputsMatched).toBe(true);
+  });
+
+  test("matchTier field is present on every returned object", () => {
+    const at = ["test A", "test B"];
+    const ri = [
+      { label: "test A", language: "javascript", function: "fn", args: [1], expected: 10 },
+      { label: "other", language: "javascript", function: "fn", args: [2], expected: 20 },
+    ];
+    const result = correlateTestFailures(["test A", "test B", "unknown"], ri, at, "javascript");
+    expect(result).toHaveLength(3);
+    for (const entry of result) {
+      expect(entry).toHaveProperty("matchTier");
+      expect([1, 2, 3]).toContain(entry.matchTier);
+    }
   });
 });
 

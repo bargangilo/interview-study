@@ -37,14 +37,14 @@
       },
       "runInputs": [
         {
-          "label": "mixed budgets",
+          "label": "finds best seat for each budget",
           "language": "javascript",
           "function": "findBestSeats",
           "args": [[25, 50, 75, 100], [60, 30, 90]],
           "expected": [50, 25, 75]
         },
         {
-          "label": "one out of budget",
+          "label": "returns negative one when no seat is affordable",
           "language": "javascript",
           "function": "findBestSeats",
           "args": [[15, 40, 65], [50, 10]],
