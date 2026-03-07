@@ -464,6 +464,7 @@ Run through this checklist before writing any files. Every answer must match the
 33. For any problem involving collection storage or retrieval: is there at least one test where a stored value is a falsy non-null value (`""`, `0`, or `false` as appropriate for the domain)? **Must be Yes.**
 34. For any function that takes a mutable input and is not specified to mutate it: is there a test verifying the original input is unchanged after the call? **Must be Yes.**
 35. For any function that is specified to mutate its input: is there a test verifying the mutation occurred correctly? **Must be Yes if applicable.**
+36. For "both" language config: does every test in `suite.test.py` assert the same expected values as its counterpart in `suite.test.js`? **Must be Yes if applicable.**
 
 ---
 

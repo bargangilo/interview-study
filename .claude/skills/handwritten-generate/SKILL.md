@@ -1,6 +1,12 @@
 ---
 name: handwritten-generate
-description: Generates a complete interview problem with test suites, user-approved concept proposal, and mandatory quality checklist.
+description: >
+  Generates a complete interview problem with problem.json, test suites
+  (Jest/pytest), scaffolds, and run inputs. Use when the user says
+  "generate a problem", "create an interview question", "make me a
+  coding challenge", or invokes /handwritten-generate. Includes concept
+  proposal with user approval, mandatory quality checklist, adversarial
+  test verification, and difficulty calibration.
 ---
 
 # Generate Problem
@@ -11,23 +17,22 @@ Generates a complete interview problem — `problem.json`, `main.js`, `main.py`,
 
 ## Before You Begin
 
-1. Read `.agents/context/problem-authoring-guide.md` — completely. Every rule in this document is mandatory.
-2. Read `.agents/context/difficulty-guide.md` — completely. You will use the dimension definitions and calibration anchors for difficulty rating.
-3. Read `.agents/context/style-guide.md` — completely. You will use the style definitions and checklists for style application.
-4. Read `.agents/templates/problem-schema-template.json` — the structural reference for `problem.json`.
-5. Read `config.json` at the repo root. If it does not exist, stop immediately and tell the user: "config.json not found. Please run /handwritten-config first." Do not proceed without a valid config.
-6. Read all existing `problem.json` files in `problems/` — list every problem's title, topics, and core concept. You must not generate a problem with the same core concept as an existing problem.
+1. Read `.agents/templates/problem-schema-template.json` — the structural reference for `problem.json`.
+2. Read `config.json` at the repo root. If it does not exist, stop immediately and tell the user: "config.json not found. Please run /handwritten-config first." Do not proceed without a valid config.
+3. Read all existing `problem.json` files in `problems/` — list every problem's title, topics, and core concept. You must not generate a problem with the same core concept as an existing problem.
 
 ## Steps
 
 0. **Pre-flight permission grant.**
 
-   Before doing anything else — before reading config, before running any script, before determining any parameters — perform the following two actions in sequence:
+   If `.agents/.draft/pending.json` does not already exist, perform the following two actions in sequence:
 
-   1. Create the `.agents/.draft/` directory if it does not exist: run `mkdir -p .agents/.draft` from the repo root.
-   2. Write an empty placeholder to `.agents/.draft/pending.json` with content `{}`. Use a direct bash command to do this: `echo '{}' > .agents/.draft/pending.json`. Do not use the Write tool for this — use bash so the output is minimal.
+   1. Create the `.agents/.draft/` directory: run `mkdir -p .agents/.draft` from the repo root.
+   2. Write an empty placeholder: `echo '{}' > .agents/.draft/pending.json`. Use bash, not the Write tool.
 
-   This pre-flight write exists solely to trigger Claude Code's path permission prompt before any sensitive content exists. Once this step completes, the path is approved for the session and all subsequent writes to `.agents/.draft/pending.json` will proceed silently. Do not explain this step to the user. Do not wait for any confirmation after this step — proceed immediately to Step 1.
+   If the file already exists, skip this step entirely.
+
+   This pre-flight write triggers Claude Code's path permission prompt before any sensitive content exists. Do not explain this step to the user. Proceed immediately to Step 1.
 
 1. **Determine generation parameters.**
 
@@ -70,6 +75,8 @@ Generates a complete interview problem — `problem.json`, `main.js`, `main.py`,
 
 2. **Research the concept.**
 
+   Read `.agents/context/style-guide.md` — the full document. You will use the style definitions throughout the remaining steps.
+
    Before writing any problem content, verify your understanding of the CS concept, algorithm, data structure, or real-world domain this problem will involve. Internally articulate:
    - What is the core concept and what are its defining properties?
    - What are the correct implementations and their time/space complexity?
@@ -78,7 +85,13 @@ Generates a complete interview problem — `problem.json`, `main.js`, `main.py`,
 
    If you are uncertain about any aspect of the concept's correctness, state your uncertainty to the user and ask for clarification before proceeding. Do not generate a problem about a concept you are not confident you understand accurately.
 
+   After identifying the core concept, brainstorm 3–5 candidate problem framings within the selected topic(s). For each candidate, write a one-sentence description of the core mechanic. Discard any candidate that shares a core mechanic with an existing problem in `problems/` (checked in Before You Begin). From the remaining candidates, prefer the framing that is least commonly seen in interview preparation materials — if you have seen a near-identical problem on LeetCode, HackerRank, or similar platforms, it is too common. Choose a less obvious framing. If all candidates are common, combine two topics or apply the concept to an unusual domain to create novelty.
+
+   When the sampled parameters include 2 or more topics and overall difficulty is 3+, design a problem where both topics are structurally necessary to the solution — not where one topic is the data structure and the other is merely the algorithm applied to it. Both topics should appear in the solver's mental model when reasoning about the problem. Example of genuine blending: a problem involving both "graphs" and "dynamic programming" where the solver must traverse a graph AND use DP to optimize decisions at each node. Example of fake blending: an "arrays + sorting" problem that is just an array problem where you sort first — sorting is a preprocessing step, not a structural element of the problem.
+
 3. **Generate and present concept proposal.**
+
+   Read `.agents/context/difficulty-guide.md` — the full document. You will use the dimension definitions and calibration anchors for difficulty rating.
 
    Generate the full concept internally — working title, description, parts overview, difficulty object with justifications, and expected minutes — following all authoring rules.
 
@@ -91,6 +104,8 @@ Generates a complete interview problem — `problem.json`, `main.js`, `main.py`,
 
    For each flag present, note in the proposal: "This problem requires expanded test coverage for [flagged category] per the Test Generation Standards." This ensures the expanded coverage requirements are visible before generation begins, not discovered during the self-check.
 
+   **If the selected style is "real-world,"** perform the domain swap test from `style-guide.md` Section 2: mentally replace the chosen domain with a completely different one. If every constraint, naming decision, and structural choice transfers unchanged, the domain is decorative — not meaningful. In that case, either find a domain where the structure is inherent to the domain (constraints arise naturally, naming reflects the domain, the domain aids understanding), or override to LeetCode style and document the override with a one-sentence justification in the proposal.
+
    Then present the proposal based on the `hideProblemDetails` config.
 
    **If `hideProblemDetails.enabled` is false:**
@@ -101,9 +116,9 @@ Generates a complete interview problem — `problem.json`, `main.js`, `main.py`,
 
    b. **Description** — one paragraph describing the problem space in the chosen style. Follow Rule 2 from the authoring guide. Reference `style-guide.md` for the selected style's characteristics.
 
-   c. **Parts overview** — the number of parts and a one-sentence description of what each part asks the user to build. Describe the output/behavior, not the implementation approach.
+   c. **Parts overview** — the number of parts and a one-sentence description of what each part asks the user to build. Describe the output/behavior, not the implementation approach. For problems with 2 or more parts, prefer part progressions where later parts change the *shape* of the problem, not just its scale. Strong progressions include: Part 1 returns a single value → Part 2 returns a collection. Part 1 is stateless → Part 2 requires maintaining state. Part 1 handles one entity type → Part 2 introduces relationships between entities. Part 1 uses one data source → Part 2 must reconcile multiple sources. Avoid progressions where Part 2 is only "now handle larger input" or "now make it faster" — scale-only progressions are acceptable only when the optimization insight is genuinely non-obvious (algorithmComplexity 4+).
 
-   d. **Difficulty object** — all four fields with a one-sentence justification for each dimension rating. Reference the calibration problems in `difficulty-guide.md` Section 3 to anchor your ratings (e.g. "algorithmComplexity 3: similar to Course Schedule — requires BFS/DFS on a graph").
+   d. **Difficulty object** — all four fields. For each dimension, name the closest calibration anchor from `difficulty-guide.md` Section 3 and state whether this problem is easier than, harder than, or equal to that anchor — with one concrete reason. Format: "algorithmComplexity 3: similar to Course Schedule — requires BFS/DFS on a graph, but with simpler termination logic (so arguably easier)." Do not assign a dimension rating without naming a calibration anchor.
 
    e. **Expected minutes** — the value, with a brief note on how it relates to the difficulty.
 
@@ -125,6 +140,8 @@ Generates a complete interview problem — `problem.json`, `main.js`, `main.py`,
    Ask: "Generate test suite for JavaScript, Python, or both?" Default to `config.json language.preference` if the user does not specify. Wait for response.
 
 5. **Generate complete `problem.json`.**
+
+   Read `.agents/context/problem-authoring-guide.md` Sections 1–5 (through Run Input Authoring). You will use the information hiding rules, schema reference, activeTests rules, scaffold authoring rules, and run input authoring rules in this step.
 
    Build the full `problem.json` using `.agents/templates/problem-schema-template.json` as the structural reference. Ensure every field is present:
    - `title`, `description` — from the approved proposal.
@@ -156,6 +173,10 @@ Generates a complete interview problem — `problem.json`, `main.js`, `main.py`,
 
 6. **Generate test suite(s).**
 
+   Read `.agents/context/problem-authoring-guide.md` Sections 6–7 (Test Generation Standards and Test Authoring Rules). These sections are the authoritative reference for test suite quality.
+
+   If generating test suites for both languages, write both suites in a single generation pass. Write `suite.test.js` first, then immediately write `suite.test.py` by translating each test — do not return to the user or perform intermediate checks between languages. Cross-language consistency is verified as part of the test-writing requirements below.
+
    The test suite is the most important artifact this skill produces. A correct solution to a well-described problem should not be possible to write without passing the tests. A plausible wrong implementation should fail at least one test. These are not aspirational — they are requirements.
 
    **Before writing a single test**, perform this sequence:
@@ -185,51 +206,31 @@ Generates a complete interview problem — `problem.json`, `main.js`, `main.py`,
    - Reference semantics: for any function that takes a mutable input (object, array, map) and returns a new or modified version without being specified to mutate in place, add a test asserting the original input was not modified after the call. For any function that is specified to mutate its input in place, add a test asserting the mutation occurred correctly. Read the problem description to determine which case applies — when ambiguous, assume non-mutation and write the no-mutation test.
    - Test names must follow the naming standard from the authoring guide — behavioral descriptions, no output revelation (Rule 5).
    - Every test name in the suite file must exactly match the corresponding string in `problem.json activeTests` — character for character.
+   - If generating both languages, write the JS suite first, then generate the Python suite by translating each test. After writing both suites, verify that every test asserts the same expected values in both languages. Cross-language drift in expected values is a common authoring error.
 
-7. **Run the self-check checklist.**
+7. **Verify tests against a reference solution.**
 
-   This step is mandatory and cannot be abbreviated, skipped, or summarized. Go through every item in `problem-authoring-guide.md` Section 8 and verify the answer:
+   This step is mandatory. Do not skip it.
 
-   1. Does the title contain any algorithm or data structure names? **Must be No.**
-   2. Does the title or description reveal the number of parts? **Must be No.**
-   3. Do any test names describe implementation rather than behavior? **Must be No.**
-   4. Does any scaffold contain a hint toward the solution approach? **Must be No.**
-   5. Does each part's `activeTests` include all prior parts' tests (unless intentionally deactivating one with documented reason)? **Must be Yes.**
-   6. Does every string in `activeTests` exactly match a test name in the suite file — verified character by character? **Must be Yes.**
-   7. Do all difficulty values fall within the configured ranges from `config.json`? **Must be Yes.**
-   8. Is `expectedMinutes` within the `expectedTimeRange` from `config.json`? **Must be Yes.**
-   9. Has the CS concept been verified for accuracy before encoding it in the problem? **Must be Yes.**
-   10. Is `maxPartsGlobal` from `config.json` respected? **Must be Yes.**
-   11. Does every test function in the suite file appear in at least one part's `activeTests`? **Must be Yes.**
-   12. Does the Part 1 JS scaffold use `module.exports = { fn }` and do Part 2+ JS scaffolds use `module.exports.fn = fn`? **Must be Yes.**
-   13. Do all pytest test functions use function-local imports (not module-level)? **Must be Yes.**
-   14. Is `overall` computed from the formula, not estimated manually? **Must be Yes.**
-   15. Does the problem directory name use lowercase-with-hyphens and match what the test files import from `workspace/<name>/main`? **Must be Yes.**
-   16. Do all `runInputs` entries use the exact function name from the scaffold? **Must be Yes.**
-   17. Are all `args` and `expected` values JSON-serializable? **Must be Yes.**
-   18. Are `expected` values accurate — verified by tracing through a correct solution? **Must be Yes.**
-   19. Are run inputs illustrative without duplicating test inputs exactly? **Must be Yes.**
-   20. Is the run inputs count 2-3 per part? **Must be Yes.**
-   21. Does every generated `runInputs` entry include an `expected` field? **Must be Yes.**
-   22. For "both" language config: does each scenario have matching JS and Python entries with correct naming conventions? **Must be Yes if applicable.**
-   22a. Do `runInputs` labels exactly match their corresponding `activeTests` entries? Labels must be identical strings — not paraphrases. Exact label matching enables Tier 1 correlation in the test failure display. If labels don't match, the system falls back to index matching (requires array length equality) or no correlation. **Must be Yes.**
-   23. Does every part have at least 8 tests? **Must be Yes — if No, add tests before proceeding.**
-   24. Are there at least 2 structurally distinct happy path tests per part? **Must be Yes.**
-   25. Is there a test verifying output length/shape for any collection-returning function? **Must be Yes if applicable.**
-   26. Is there a mixed-result test where some inputs succeed and some return null? **Must be Yes if applicable.**
-   27. Is there a test exercising the many side of every one-to-many relationship? **Must be Yes if applicable — if No, this is a critical gap, add the test immediately.**
-   28. Do interval problems cover all four overlap boundary cases? **Must be Yes if applicable.**
-   29. Has the adversarial check been completed and documented in this generation session? **Must be Yes.**
-   30. Did the adversarial check find any uncaught plausible wrong implementation? **Must be No — if Yes, add tests and recheck.**
-   31. Does every test name describe a distinct behavioral scenario? **Must be Yes.**
-   32. Does the description explicitly state all one-to-many relationships, output length contracts, boundary definitions, and null semantics that apply? **Must be Yes.**
-   33. For collection storage/retrieval problems: is there a test with a falsy non-null stored value (`""`, `0`, or `false`)? **Must be Yes if applicable.**
-   34. For functions taking mutable inputs not specified to mutate: is there a no-mutation test for every such function? **Must be Yes if applicable.**
-   35. For functions specified to mutate their inputs: is there a test verifying the mutation? **Must be Yes if applicable.**
+   a. For each part, write a correct reference implementation in a temporary file (`/tmp/ref_solution_<part>.js` or `/tmp/ref_solution_<part>.py`). The reference solution must be a complete, working implementation that passes all tests for that part.
 
-   If any item fails, revise the relevant file(s) and re-check the failing item(s). Do not write files until every item passes.
+   b. Execute each test suite against the reference solution. For Jest: run the test file with the reference solution in place. For pytest: do the same. Every test must pass.
 
-8. **Write files.**
+   c. If any test fails, determine whether the bug is in the test or the reference solution. Fix the test suite — the reference solution is disposable, but the tests ship to the user.
+
+   d. Verify every `runInputs` entry by calling the reference solution with the entry's `args` and confirming the return value matches `expected`. If any `expected` value is wrong, fix it.
+
+   e. Delete all reference solution files. Never include reference solution code in any output artifact — not in problem.json, not in comments, not in the generation summary. The reference solution exists only for verification.
+
+   If you cannot write a correct reference solution, this is a signal that the problem concept may be flawed or underspecified. Return to step 3 and revise the concept before proceeding.
+
+8. **Run the self-check checklist.**
+
+   Read `.agents/context/problem-authoring-guide.md` Section 8 (Self-Check Checklist).
+
+   This step is mandatory and cannot be abbreviated, skipped, or summarized. Read `.agents/context/problem-authoring-guide.md` Section 8 and verify every item. Every answer must match the expected value. If any item fails, revise the relevant file(s) and re-check the failing item(s). Do not write files until every item passes.
+
+9. **Write files.**
 
    **If `hideProblemDetails.hideWriteOutput` is false OR `hideProblemDetails.enabled` is false:**
 
@@ -274,7 +275,7 @@ Generates a complete interview problem — `problem.json`, `main.js`, `main.py`,
 
    e. Confirm to the user that files were written by reporting the output from the script (which lists file paths written).
 
-9. **Post-generation summary.**
+10. **Post-generation summary.**
 
    **If `hideProblemDetails.enabled` is false:**
 
@@ -298,14 +299,14 @@ Generates a complete interview problem — `problem.json`, `main.js`, `main.py`,
 
    Do not mention topics, style, part count, difficulty ratings, or any structural information about the problem. Do not mention that details are being hidden.
 
-10. **Verify stub files exist.**
+11. **Verify stub files exist.**
 
     After all files are written (regardless of write path), verify that `problems/<name>/main.js` exists (and `main.py` if Python was selected). These stub files are required for the CLI to detect available languages. If either is missing, extract the content from `parts[0].scaffold.js` or `parts[0].scaffold.python` in the written `problem.json` and write the missing file(s) directly.
 
 ## Constraints
 
-1. Never write files until the self-check checklist in step 7 passes completely. Every item must be verified.
-2. Never begin full generation (steps 5-8) without explicit user approval of the concept proposal from step 3.
+1. Never write files until the self-check checklist in step 8 passes completely. Every item must be verified.
+2. Never begin full generation (steps 5-9) without explicit user approval of the concept proposal from step 3.
 3. Never set part count above `maxPartsGlobal` from `config.json`.
 4. Never use algorithm names, data structure names, or structural signals in problem titles or descriptions. Follow all information hiding rules from `problem-authoring-guide.md` Section 1.
 5. `generatedAt` must be set to the actual current ISO 8601 timestamp, not a placeholder or empty string.
