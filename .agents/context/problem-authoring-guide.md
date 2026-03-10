@@ -249,6 +249,10 @@ Both `args` and `expected` must be JSON-serializable. Allowed: arrays, plain obj
 
 Run inputs from Part 1 continue running when Part 2 unlocks. The harness accumulates all run inputs from unlocked parts in order. Part 1 inputs should remain meaningful in the context of Part 2 — if Part 2 changes the function signature or return contract, replace or remove the Part 1 run inputs that would break.
 
+### Async Function Support
+
+The run harness handles async functions automatically. In JavaScript, all function calls are awaited inside an async IIFE — this is a no-op for synchronous functions since `await syncValue === syncValue`. In Python, the harness checks each return value with `inspect.isawaitable()` and unwraps coroutines via `asyncio.run()`. No schema changes or special flags are needed. Problems with async solutions work with `runInputs` identically to synchronous problems.
+
 ### Language-Specific Entries
 
 Each entry specifies a `language` field. For both-language problems, provide matching JS and Python entries per scenario with the correct function names (`findBestSeats` for JS, `find_best_seats` for Python). For JS-only problems, only JS entries are needed.

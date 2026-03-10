@@ -305,6 +305,8 @@ function buildJsHarness(entries) {
     "function _deepEqual(a, b) {",
     "  return JSON.stringify(a) === JSON.stringify(b);",
     "}",
+    "",
+    "(async () => {",
   ];
 
   let lastPartIndex = -1;
@@ -318,7 +320,7 @@ function buildJsHarness(entries) {
     const argsStr = e.args.map((a) => JSON.stringify(a)).join(", ");
     const hasExpected = Object.prototype.hasOwnProperty.call(e, "expected");
     lines.push("try {");
-    lines.push(`  const _r${i} = mod.${e.function}(${argsStr});`);
+    lines.push(`  const _r${i} = await mod.${e.function}(${argsStr});`);
     if (hasExpected) {
       lines.push(`  const _e${i} = ${JSON.stringify(e.expected)};`);
       lines.push(`  const _pass${i} = _deepEqual(_r${i}, _e${i});`);
@@ -333,12 +335,15 @@ function buildJsHarness(entries) {
     lines.push("}");
   }
 
+  lines.push("");
+  lines.push("})();");
+
   return lines.join("\n") + "\n";
 }
 
 function buildPyHarness(entries) {
   const lines = [
-    "import sys, json",
+    "import sys, json, asyncio, inspect",
     "sys.path.insert(0, '.')",
     "",
     "def _deep_equal(a, b):",
@@ -362,6 +367,8 @@ function buildPyHarness(entries) {
     const hasExpected = Object.prototype.hasOwnProperty.call(e, "expected");
     lines.push("try:");
     lines.push(`    _r${i} = ${e.function}(${argsStr})`);
+    lines.push(`    if inspect.isawaitable(_r${i}):`);
+    lines.push(`        _r${i} = asyncio.run(_r${i})`);
     if (hasExpected) {
       lines.push(`    _e${i} = ${jsonToPython(e.expected)}`);
       lines.push(`    _pass${i} = _deep_equal(_r${i}, _e${i})`);

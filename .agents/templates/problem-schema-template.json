@@ -44,7 +44,7 @@
           "python": "<string: Python source code>"
         },
         "runInputs": {
-          "_comment": "Optional. 2-3 representative function calls executed on every save and shown as Examples before solving. Per-part — accumulates as parts unlock. Language-specific entries. Args and expected must be JSON-serializable. Expected is optional but strongly recommended — omitting it shows return values with no pass/fail indicator. Labels appear in console panel and problem description. Do not duplicate test inputs exactly.",
+          "_comment": "Optional. 2-3 representative function calls executed on every save and shown as Examples before solving. Per-part — accumulates as parts unlock. Language-specific entries. Args and expected must be JSON-serializable. Expected is optional but strongly recommended — omitting it shows return values with no pass/fail indicator. Labels appear in console panel and problem description. Do not duplicate test inputs exactly. Async functions are handled automatically — no special configuration required.",
           "value": [
             {
               "label": "<string: short scenario name, e.g. 'basic case'>",

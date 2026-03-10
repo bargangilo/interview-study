@@ -84,6 +84,10 @@ For both-language problems, provide matching JS and Python entries per scenario 
 
 Both `args` and `expected` must be JSON-serializable. The following are not allowed: functions, `undefined`, `NaN`, `Infinity`, circular references, class instances. Arrays, plain objects, strings, numbers, booleans, and `null` are all valid.
 
+### Async Function Support
+
+The harness handles async functions automatically. In JavaScript, all calls are awaited inside an async wrapper — `await syncValue === syncValue` makes this a no-op for sync functions. In Python, each return value is checked with `inspect.isawaitable()` and unwrapped via `asyncio.run()` if needed. No special configuration is required.
+
 ### Authoring Guidelines
 
 Include 2-3 inputs per part. Inputs should be representative of the common case, not edge cases — they are visible to the user before solving. Do not use inputs identical to any test case. Keep args small (arrays of 4-6 elements). The `expected` value must be accurate — an incorrect `expected` produces a false failure on every save.

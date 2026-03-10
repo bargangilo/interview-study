@@ -722,6 +722,27 @@ describe("buildRunHarness — JavaScript", () => {
     expect(harness).toContain("JSON.stringify(a) === JSON.stringify(b)");
   });
 
+  test("wraps function calls in async IIFE", () => {
+    const parts = [
+      makePart("P1", [
+        { label: "basic", language: "javascript", function: "fn", args: [1], expected: 1 },
+      ]),
+    ];
+    const harness = buildRunHarness(parts, "javascript");
+    expect(harness).toContain("(async () => {");
+    expect(harness).toContain("})();");
+  });
+
+  test("awaits function calls for async support", () => {
+    const parts = [
+      makePart("P1", [
+        { label: "basic", language: "javascript", function: "fn", args: [1], expected: 1 },
+      ]),
+    ];
+    const harness = buildRunHarness(parts, "javascript");
+    expect(harness).toContain("const _r0 = await mod.fn(1);");
+  });
+
   test("generates pass/fail check when expected is present", () => {
     const parts = [
       makePart("P1", [
@@ -764,7 +785,7 @@ describe("buildRunHarness — JavaScript", () => {
       ]),
     ];
     const harness = buildRunHarness(parts, "javascript");
-    expect(harness).toContain("mod.fn([1,2,3])");
+    expect(harness).toContain("await mod.fn([1,2,3])");
   });
 
   test("serializes nested array args correctly", () => {
@@ -774,7 +795,7 @@ describe("buildRunHarness — JavaScript", () => {
       ]),
     ];
     const harness = buildRunHarness(parts, "javascript");
-    expect(harness).toContain("mod.fn([1,[2,3]])");
+    expect(harness).toContain("await mod.fn([1,[2,3]])");
   });
 
   test("serializes string args with quotes", () => {
@@ -784,7 +805,7 @@ describe("buildRunHarness — JavaScript", () => {
       ]),
     ];
     const harness = buildRunHarness(parts, "javascript");
-    expect(harness).toContain('mod.fn("hello")');
+    expect(harness).toContain('await mod.fn("hello")');
   });
 
   test("serializes numeric args", () => {
@@ -794,7 +815,7 @@ describe("buildRunHarness — JavaScript", () => {
       ]),
     ];
     const harness = buildRunHarness(parts, "javascript");
-    expect(harness).toContain("mod.fn(42, 3.14)");
+    expect(harness).toContain("await mod.fn(42, 3.14)");
   });
 
   test("serializes expected value correctly", () => {
@@ -859,8 +880,8 @@ describe("buildRunHarness — JavaScript", () => {
       ]),
     ];
     const harness = buildRunHarness(parts, "javascript");
-    const p1Pos = harness.indexOf("mod.fn1(1)");
-    const p2Pos = harness.indexOf("mod.fn2(2)");
+    const p1Pos = harness.indexOf("await mod.fn1(1)");
+    const p2Pos = harness.indexOf("await mod.fn2(2)");
     expect(p1Pos).toBeLessThan(p2Pos);
   });
 
@@ -902,10 +923,31 @@ describe("buildRunHarness — Python", () => {
       ]),
     ];
     const harness = buildRunHarness(parts, "python");
-    expect(harness).toContain("import sys, json");
+    expect(harness).toContain("import sys, json, asyncio, inspect");
     expect(harness).toContain("sys.path.insert(0, '.')");
     expect(harness).toContain("def _deep_equal(a, b):");
     expect(harness).toContain("from main import my_fn");
+  });
+
+  test("imports asyncio and inspect for async support", () => {
+    const parts = [
+      makePart("P1", [
+        { label: "basic", language: "python", function: "fn", args: [1], expected: 1 },
+      ]),
+    ];
+    const harness = buildRunHarness(parts, "python");
+    expect(harness).toContain("import sys, json, asyncio, inspect");
+  });
+
+  test("adds isawaitable check after each call", () => {
+    const parts = [
+      makePart("P1", [
+        { label: "basic", language: "python", function: "fn", args: [1], expected: 1 },
+      ]),
+    ];
+    const harness = buildRunHarness(parts, "python");
+    expect(harness).toContain("if inspect.isawaitable(_r0):");
+    expect(harness).toContain("_r0 = asyncio.run(_r0)");
   });
 
   test("generates pass/fail check when expected present", () => {
