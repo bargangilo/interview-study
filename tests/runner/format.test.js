@@ -459,6 +459,60 @@ describe("extractJestResults", () => {
     expect(result.consoleLogs[0].endsWith("\u2026")).toBe(true);
   });
 
+  test("extracts error from thrown TypeError when no Expected/Received lines", () => {
+    const json = makeJestJson({
+      testResults: [{
+        assertionResults: [
+          { status: "failed", title: "handles missing data", failureMessages: ["TypeError: Cannot read properties of undefined (reading 'Symbol(Symbol.iterator)')\n    at crawl (/path/main.js:39:28)\n    at Object.<anonymous> (/path/suite.test.js:75:22)"] },
+        ],
+      }],
+    });
+    const result = extractJestResults(json);
+    expect(result.failures[0].error).toBe("TypeError: Cannot read properties of undefined (reading 'Symbol(Symbol.iterator)')");
+    expect(result.failures[0].expected).toBeNull();
+    expect(result.failures[0].received).toBeNull();
+  });
+
+  test("extracts error from thrown ReferenceError", () => {
+    const json = makeJestJson({
+      testResults: [{
+        assertionResults: [
+          { status: "failed", title: "test", failureMessages: ["ReferenceError: foo is not defined\n    at Object.<anonymous> (/path/test.js:5:5)"] },
+        ],
+      }],
+    });
+    const result = extractJestResults(json);
+    expect(result.failures[0].error).toBe("ReferenceError: foo is not defined");
+  });
+
+  test("does not set error when Expected/Received are present", () => {
+    const json = makeJestJson({
+      testResults: [{
+        assertionResults: [
+          { status: "failed", title: "test", failureMessages: ["Expected: [1, 2]\nReceived: [3, 4]"] },
+        ],
+      }],
+    });
+    const result = extractJestResults(json);
+    expect(result.failures[0].expected).toBe("[1, 2]");
+    expect(result.failures[0].received).toBe("[3, 4]");
+    expect(result.failures[0].error).toBeNull();
+  });
+
+  test("truncates error at 200 chars", () => {
+    const longError = "TypeError: " + "x".repeat(250);
+    const json = makeJestJson({
+      testResults: [{
+        assertionResults: [
+          { status: "failed", title: "test", failureMessages: [longError + "\n    at foo (/bar.js:1:1)"] },
+        ],
+      }],
+    });
+    const result = extractJestResults(json);
+    expect(result.failures[0].error.length).toBe(201);
+    expect(result.failures[0].error.endsWith("\u2026")).toBe(true);
+  });
+
   test("does not throw for malformed input", () => {
     expect(() => extractJestResults("{}")).not.toThrow();
     expect(() => extractJestResults('{"testResults": "not an array"}')).not.toThrow();
@@ -551,6 +605,32 @@ describe("extractPytestResults", () => {
     expect(result.failures).toHaveLength(2);
     expect(result.failures[0].name).toBe("case one");
     expect(result.failures[1].name).toBe("case two");
+  });
+
+  test("extracts error from thrown TypeError", () => {
+    const stdout = [
+      "__________________ test_handles_missing_data __________________",
+      "suite.test.py:10: in test_handles_missing_data",
+      "    result = crawl(start, site_map)",
+      "E   TypeError: 'NoneType' object is not iterable",
+    ].join("\n");
+    const result = extractPytestResults(stdout);
+    expect(result.failures).toHaveLength(1);
+    expect(result.failures[0].name).toBe("handles missing data");
+    expect(result.failures[0].error).toBe("TypeError: 'NoneType' object is not iterable");
+    expect(result.failures[0].expected).toBeNull();
+    expect(result.failures[0].received).toBeNull();
+  });
+
+  test("extracts error from thrown ValueError", () => {
+    const stdout = [
+      "__________________ test_parses_input __________________",
+      "suite.test.py:20: in test_parses_input",
+      "    result = parse(data)",
+      "E   ValueError: invalid literal for int() with base 10: 'abc'",
+    ].join("\n");
+    const result = extractPytestResults(stdout);
+    expect(result.failures[0].error).toBe("ValueError: invalid literal for int() with base 10: 'abc'");
   });
 
   test("does not throw for malformed input", () => {

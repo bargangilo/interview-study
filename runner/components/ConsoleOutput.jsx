@@ -110,6 +110,9 @@ export default function ConsoleOutput({ lines, visible, lastRunAt, testFailures,
               {failure.received != null ? (
                 <Text>{"   "}<Text dimColor>Received:</Text> <Text color="red">{failure.received}</Text></Text>
               ) : null}
+              {failure.error != null && failure.expected == null && failure.received == null ? (
+                <Text>{"   "}<Text dimColor>Error:</Text> <Text color="yellow">{failure.error}</Text></Text>
+              ) : null}
             </React.Fragment>
           ))}
           <Text dimColor>{"  "}{border}</Text>

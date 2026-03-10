@@ -92,7 +92,7 @@ function truncate(str) {
 
 /**
  * Extracts test results from Jest --json output.
- * Returns: { failures: [{ name, expected, received }], consoleLogs: string[], passCount: number }
+ * Returns: { failures: [{ name, expected, received, error }], consoleLogs: string[], passCount: number }
  * Returns: { failures: [], consoleLogs: [], passCount: 0 } for null or unparseable input.
  * Never throws.
  */
@@ -127,6 +127,7 @@ export function extractJestResults(jestJsonString) {
           const name = assertion.title || "unknown test";
           let expected = null;
           let received = null;
+          let error = null;
 
           const messages = assertion.failureMessages;
           if (Array.isArray(messages) && messages.length > 0) {
@@ -135,9 +136,14 @@ export function extractJestResults(jestJsonString) {
             const receivedMatch = msg.match(/^\s*Received(?:[^:]*)?:\s*(.+)$/m);
             if (expectedMatch) expected = truncate(expectedMatch[1]);
             if (receivedMatch) received = truncate(receivedMatch[1]);
+
+            if (!expected && !received) {
+              const firstLine = msg.split("\n")[0].trim();
+              if (firstLine) error = truncate(firstLine);
+            }
           }
 
-          failures.push({ name, expected, received });
+          failures.push({ name, expected, received, error });
         }
       }
 
@@ -232,7 +238,7 @@ export function formatRunOutput(stdout, stderr) {
  *       assert result == expected
  *   E   AssertionError: assert None == {'key': 'value'}
  *
- * Returns: { failures: [{ name, expected, received }], consoleLogs: string[], passCount: number }
+ * Returns: { failures: [{ name, expected, received, error }], consoleLogs: string[], passCount: number }
  * Returns: { failures: [], consoleLogs: [], passCount: 0 } for null or empty input.
  * Never throws.
  */
@@ -276,7 +282,16 @@ export function extractPytestResults(pytestStdout) {
       // Simple AssertionError with no == comparison
       if (/^E\s+AssertionError/.test(line)) {
         const name = currentTestName.replace(/^test_/, "").replace(/_/g, " ");
-        failures.push({ name, received: null, expected: null });
+        failures.push({ name, received: null, expected: null, error: null });
+        currentTestName = null;
+        continue;
+      }
+
+      // Other thrown errors (TypeError, ValueError, etc.)
+      const errorMatch = line.match(/^E\s+(\w+(?:Error|Exception):.+)$/);
+      if (errorMatch) {
+        const name = currentTestName.replace(/^test_/, "").replace(/_/g, " ");
+        failures.push({ name, expected: null, received: null, error: truncate(errorMatch[1].trim()) });
         currentTestName = null;
         continue;
       }
