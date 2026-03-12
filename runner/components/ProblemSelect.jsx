@@ -22,7 +22,6 @@ export default function ProblemSelect({ dispatch, problems }) {
       <Text>{"  "}Select a problem:{options.length > 10 ? <Text dimColor> (scroll for more)</Text> : ""}</Text>
       <Select
         options={options}
-        defaultValue={options[1]?.value}
         visibleOptionCount={10}
         onChange={(value) => {
           if (value === "__back__") {
