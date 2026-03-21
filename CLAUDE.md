@@ -15,6 +15,7 @@ The tool is feature-complete. The primary ongoing work is adding new problems an
 ```bash
 yarn install          # install dependencies
 yarn start            # launch the CLI (or: ./start.sh)
+yarn start:debug      # launch with debug instrumentation (logs to .debug/)
 yarn test             # run runner unit tests
 ```
 
@@ -32,6 +33,8 @@ pytest problems/<name>/test_sample.py -v                     # Python single-par
 **Python:** Required only for Python problems. Needs `python3` and `pytest` on PATH.
 
 **VS Code:** The CLI launches VS Code with `code`. Not required for the CLI to function — a warning prints if `code` is not found.
+
+**Debug mode:** `yarn start:debug` runs the app with dispatch logging, React.Profiler render tracing, and a crash hook. All output goes to `.debug/` (gitignored). Never write debug instrumentation to stdout or stderr — the terminal UI must not be affected. The `runner/debug.js` module is only loaded when `HANDWRITTEN_DEBUG=1` is set and must never be imported unconditionally.
 
 ## Architecture
 
@@ -69,6 +72,7 @@ Interactive components use `Select`, `TextInput`, and `MultiSelect` from `@inkjs
 | `workspace/<name>/session.json` | Timer state, attempt history | Yes (every tick + session end) |
 | `workspace/<name>/tmp/` (and other fixture dirs) | Fixture directories materialized from `problem.json` `fixtures` | Yes (created on session start and part advancement from `parts[].fixtures`) |
 | `runner.config.json` | Runner behavior configuration (timeout, etc.) | No |
+| `.debug/session.log`, `.debug/crash.log` | Debug mode output (dispatch log, crash traces) | Yes (only in debug mode) |
 | `tests/runner/` | Runner unit tests | Never |
 
 `runner.config.json` is committed and represents project defaults. `loadRunnerConfig()` always returns a usable object — it never throws and falls back to hardcoded defaults if the file is missing or malformed.

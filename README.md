@@ -58,6 +58,7 @@ On first run, select a problem, choose a language, and start coding. Tests re-ru
 | [Settings](docs/settings.md) | All config options, Surprise Me mode, detail hiding |
 | [Problem Schema](docs/problem-schema.md) | Adding problems, JSON schema reference, test conventions |
 | [Timer & Stats](docs/stats-and-timer.md) | Session persistence, timer modes, stats computation |
+| [Debug Mode](docs/debug-mode.md) | Dispatch logging, render tracing, crash diagnostics |
 
 The CLI has no AI dependency. Agent skills are optional and interact through the filesystem only.
 

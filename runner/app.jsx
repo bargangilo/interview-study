@@ -1,4 +1,4 @@
-import React, { useReducer, useMemo, useCallback } from "react";
+import React, { useReducer, useMemo, useCallback, Profiler } from "react";
 import { Box } from "ink";
 import path from "path";
 import fs from "fs";
@@ -33,6 +33,14 @@ import ExportSkills from "./components/ExportSkills.jsx";
 import SettingsMenu from "./components/SettingsMenu.jsx";
 import SettingsSection from "./components/SettingsSection.jsx";
 import SettingsEditField from "./components/SettingsEditField.jsx";
+
+const _debugModule = process.env.HANDWRITTEN_DEBUG === "1"
+  ? await import("./debug.js")
+  : null;
+
+const activeReducer = _debugModule
+  ? (state, action) => { _debugModule.logDispatch(action); return reducer(state, action); }
+  : reducer;
 
 function detectProblems(rootDir) {
   const problemsDir = path.join(rootDir, "problems");
@@ -71,7 +79,7 @@ function loadAllProblems(rootDir) {
 }
 
 export default function App({ rootDir }) {
-  const [state, dispatch] = useReducer(reducer, initialState);
+  const [state, dispatch] = useReducer(activeReducer, initialState);
 
   // Wrap dispatch to intercept certain actions for side-effect enrichment
   const enrichedDispatch = useCallback((action) => {
@@ -283,5 +291,8 @@ export default function App({ rootDir }) {
       screen = <MainMenu dispatch={enrichedDispatch} />;
   }
 
-  return <Box flexDirection="column" minHeight={15}>{screen}</Box>;
+  const content = <Box flexDirection="column" minHeight={15}>{screen}</Box>;
+  return _debugModule
+    ? <Profiler id="App" onRender={_debugModule.onRender}>{content}</Profiler>
+    : content;
 }
